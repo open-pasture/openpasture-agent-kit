@@ -1,0 +1,27 @@
+# Curated sources for future knowledge ingestion.
+# URLs are intentionally left to be filled by explicit curation rather than guessed.
+
+sources:
+  - title: Greg Judy rotational grazing sources
+    author: Greg Judy
+    kind: youtube
+    status: needs-curation
+    notes: Focus on mob grazing, paddock allocation, rumen fill, and back fencing.
+
+  - title: Joel Salatin multi-species rotation sources
+    author: Joel Salatin
+    kind: youtube
+    status: needs-curation
+    notes: Focus on cattle, eggmobile sequencing, and whole-farm fertility logic.
+
+  - title: Richard Perkins design and grazing sources
+    author: Richard Perkins
+    kind: youtube
+    status: needs-curation
+    notes: Focus on scale of permanence, infrastructure realism, and decision systems.
+
+  - title: Pasture Bird system sources
+    author: Pasture Bird
+    kind: youtube
+    status: needs-curation
+    notes: Focus on automated range coop design and scaling fresh pasture access.
