@@ -15,6 +15,7 @@ class MovementDecision:
 
     id: str
     farm_id: str
+    herd_id: str | None
     for_date: date
     action: DecisionAction
     reasoning: list[str] = field(default_factory=list)

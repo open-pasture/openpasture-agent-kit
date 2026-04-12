@@ -5,6 +5,7 @@ provides_tools:
   - register_farm
   - add_paddock
   - get_farm_state
+  - set_herd_position
   - record_observation
   - get_paddock_state
   - movement_decision
