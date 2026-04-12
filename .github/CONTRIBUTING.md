@@ -13,9 +13,27 @@ Thanks for contributing to `openPasture`.
 ## Development Expectations
 
 - Start from `docs/vision.md` and `docs/architecture.md`.
+- Review `docs/cloud-boundary.md` before introducing hosted-only concepts.
+- Review `docs/cloud-handoff.md` for the current alpha baseline and the known handoff assumptions.
 - Keep new capabilities aligned with the morning brief loop.
 - Add tests where contracts or domain rules become non-trivial.
 - Keep language farmer-readable.
+
+## Validation
+
+Run the reusable alpha validation path before opening a pull request:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate automated
+```
+
+For packaging or runtime changes, also run:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate docker
+```
+
+The full maintainer validation runbook lives in `docs/alpha-validation.md`.
 
 ## Scope Discipline
 

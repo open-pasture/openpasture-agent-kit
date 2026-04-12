@@ -2,6 +2,11 @@
 
 `openPasture` is an open-source grazing management companion built as a Hermes agent plugin.
 
+This repository specifically holds the Hermes implementation of the `openPasture`
+agent. If future runtimes are built for other frameworks, they should live in
+separate sibling repositories instead of reshaping this one into a generic
+multi-framework shell.
+
 It helps pasture-raised livestock farmers reason about daily movement decisions by combining:
 
 - practitioner knowledge from trusted regenerative farmers,
@@ -105,6 +110,19 @@ This repository biases strongly toward the agent.
 
 If a capability can live inside the open-source agent and still support self-hosting, it belongs here. The hosted platform should only make provisioning easier and layer account, billing, and dashboard functionality on top.
 
+## OSS And Cloud Boundary
+
+The OSS agent remains the canonical farm reasoning core.
+
+- This repo owns the agent runtime, tool surface, storage contracts, knowledge
+  logic, and the self-hosted morning brief loop.
+- The separate cloud repo should own hosting, auth, billing, messaging
+  orchestration, support tooling, and the proprietary UI/product surface.
+
+Read [`docs/cloud-boundary.md`](docs/cloud-boundary.md) for the durable boundary
+and [`docs/cloud-handoff.md`](docs/cloud-handoff.md) for the current alpha
+handoff baseline.
+
 ## Status
 
 This repository is ready for a simple self-hosted alpha.
@@ -142,3 +160,11 @@ uv run --python 3.11 openpasture-alpha-validate docker
 ```
 
 For the full two-profile pilot validation flow, see [`docs/alpha-validation.md`](docs/alpha-validation.md).
+
+## Maintainer Docs
+
+- [`docs/alpha-validation.md`](docs/alpha-validation.md): repeatable validation flow
+- [`docs/cloud-boundary.md`](docs/cloud-boundary.md): what stays in OSS vs what belongs in the cloud repo
+- [`docs/cloud-handoff.md`](docs/cloud-handoff.md): current alpha baseline and handoff notes
+- [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md): contribution and validation expectations
+- [`.github/SECURITY.md`](.github/SECURITY.md): vulnerability reporting guidance

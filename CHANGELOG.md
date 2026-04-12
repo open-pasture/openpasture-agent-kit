@@ -8,3 +8,4 @@
 - changed seed knowledge loading to bootstrap automatically on first run, with explicit skip and reload controls through `OPENPASTURE_LOAD_SEED`
 - hardened the alpha runtime around missing `FIRECRAWL_API_KEY`, weather API failures, and clearer session-time notices for incomplete configuration
 - updated self-hosting and README docs to reflect the current alpha workflow, included skills, and known limitations
+- documented the OSS/cloud repository boundary, current cloud handoff baseline, and maintainer validation expectations

@@ -2,6 +2,11 @@
 
 `openPasture` is designed to be usable without the hosted platform.
 
+This repository is the Hermes-specific implementation of the OSS agent core.
+The hosted OpenPasture product should wrap this logic from a separate cloud
+repository instead of moving hosted concerns into this repo. See
+[`cloud-boundary.md`](cloud-boundary.md) for the architectural split.
+
 ## What You Need
 
 - Python 3.11+

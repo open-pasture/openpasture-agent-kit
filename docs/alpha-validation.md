@@ -2,6 +2,10 @@
 
 This runbook is for maintainers validating `openPasture` after a Hermes update or plugin change.
 
+For the broader architectural split and the current cloud handoff notes, also
+read [`cloud-boundary.md`](cloud-boundary.md) and
+[`cloud-handoff.md`](cloud-handoff.md).
+
 ## Supported Hermes Target
 
 The current validated Hermes target is:
