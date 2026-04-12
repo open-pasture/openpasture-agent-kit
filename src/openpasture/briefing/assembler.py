@@ -7,12 +7,12 @@ from logging import getLogger
 
 from openpasture.briefing.attention_director import AttentionDirector
 from openpasture.domain import DailyBrief, MovementDecision, Paddock
+from openpasture.domain.observation import is_field_observation_source
 from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.knowledge.retriever import KnowledgeRetriever
 from openpasture.runtime import get_knowledge, get_store
 from openpasture.store.protocol import FarmStore
 
-FIELD_OBSERVATION_SOURCES = {"manual", "note", "photo", "field", "field-note", "farmer"}
 logger = getLogger(__name__)
 
 
@@ -69,7 +69,7 @@ class MorningBriefAssembler:
         )
         target_paddock = self._choose_target_paddock(paddocks, effective_paddock_id)
 
-        field_observations = [obs for obs in observations if obs.source in FIELD_OBSERVATION_SOURCES]
+        field_observations = [obs for obs in observations if is_field_observation_source(obs.source)]
         current_text = " ".join(
             obs.content.lower()
             for obs in observations

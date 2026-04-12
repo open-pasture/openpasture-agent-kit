@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pytest
+
 import openpasture.runtime as runtime
 from openpasture.domain import KnowledgeEntry, SourceRecord
 from openpasture.runtime import get_knowledge_store, init_knowledge_store, initialize
+
+pytestmark = pytest.mark.alpha
 
 
 def test_initialize_autoloads_seed_on_first_run(monkeypatch):

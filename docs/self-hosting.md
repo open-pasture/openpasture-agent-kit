@@ -12,7 +12,7 @@
 ## Installation
 
 ```bash
-pip install "git+https://github.com/NousResearch/hermes-agent.git"
+pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
 pip install -e .
 ```
 
@@ -57,6 +57,13 @@ Suggested first prompt:
 I am setting up a new pasture-based livestock farm. Help me create the farm, paddocks, and first herd.
 ```
 
+During this first-run flow, `openPasture` treats setup as a constrained onboarding workflow.
+
+- The preferred setup primitive is `setup_initial_farm`.
+- One farm per instance is the default alpha behavior.
+- Additional farm creation is reserved for rare admin cases via an explicit override.
+- Farmers can provide rough geospatial input such as screenshots, boundaries, landmarks, and map clues; the agent should convert those into structured geometry when possible and keep unresolved location context in notes.
+
 After onboarding, a good second prompt is:
 
 ```text
@@ -80,6 +87,11 @@ Record this observation for the current paddock: forage is getting short and mud
 - The self-hosted alpha is built around SQLite, local scheduling, and Hermes messaging.
 - Satellite ingestion and photo ingestion are not implemented yet.
 - `convex` is reserved for the later hosted wrapper and is not ready for production use in this repo yet.
+- Scheduled brief delivery remains local to this runtime. Hosted transport and delivery orchestration belong in the separate cloud wrapper.
+
+## Maintainer Pilot Validation
+
+If you are validating two operator-managed pilot instances on one machine, use Hermes profiles and the reusable runbook in [`docs/alpha-validation.md`](alpha-validation.md).
 
 ## Hardware Notes
 

@@ -2,6 +2,7 @@ name: openpasture
 version: 0.1.0-alpha
 description: Regenerative grazing advisor for pasture-raised livestock farmers.
 provides_tools:
+  - setup_initial_farm
   - register_farm
   - add_paddock
   - get_farm_state

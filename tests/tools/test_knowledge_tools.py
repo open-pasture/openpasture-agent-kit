@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from openpasture.runtime import initialize
 from openpasture.tools.knowledge import (
     handle_claim_ingestion_batch_item,
@@ -16,6 +18,8 @@ from openpasture.tools.knowledge import (
     handle_store_lesson,
     handle_update_lesson,
 )
+
+pytestmark = pytest.mark.alpha
 
 
 def test_store_update_and_search_knowledge_tools():

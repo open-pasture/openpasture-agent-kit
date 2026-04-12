@@ -6,7 +6,38 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
-ObservationSource = Literal["satellite", "photo", "note", "weather", "trailcam", "manual"]
+ObservationSource = Literal["satellite", "photo", "note", "weather", "trailcam", "manual", "field"]
+
+_OBSERVATION_SOURCE_ALIASES = {
+    "field": "field",
+    "field-note": "field",
+    "field-observation": "field",
+    "manual": "field",
+    "farmer": "field",
+    "farmer-note": "field",
+    "farmer-observation": "field",
+    "note": "note",
+    "manual-note": "note",
+    "photo": "photo",
+    "image": "photo",
+    "satellite": "satellite",
+    "trailcam": "trailcam",
+    "trail-cam": "trailcam",
+    "weather": "weather",
+}
+
+
+def normalize_observation_source(source: str) -> str:
+    """Canonicalize tool/model-provided observation source labels."""
+
+    normalized = source.strip().lower().replace("_", "-").replace(" ", "-")
+    return _OBSERVATION_SOURCE_ALIASES.get(normalized, normalized)
+
+
+def is_field_observation_source(source: str) -> bool:
+    """Return True when an observation represents direct field context."""
+
+    return normalize_observation_source(source) in {"field", "note", "photo"}
 
 
 @dataclass(slots=True)

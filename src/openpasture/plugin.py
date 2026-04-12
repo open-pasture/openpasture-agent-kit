@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from . import runtime
 from .tools._common import hermes_tool
-from .tools import brief, farm, knowledge, observe, plan
+from .tools import brief, farm, knowledge, observe, onboarding, plan
 
 TOOLSET = "openpasture"
 
@@ -17,11 +17,19 @@ def register(ctx) -> None:
     """Register openPasture tools and lifecycle hooks with Hermes."""
     runtime.initialize(delivery_handler=ctx.inject_message)
     ctx.register_tool(
+        "setup_initial_farm",
+        TOOLSET,
+        onboarding.SETUP_INITIAL_FARM_SCHEMA,
+        hermes_tool(onboarding.handle_setup_initial_farm),
+        description="Preferred first-run onboarding tool. Pass name, timezone, herd details, paddocks, and current paddock; do not call with empty args.",
+        emoji="🚜",
+    )
+    ctx.register_tool(
         "register_farm",
         TOOLSET,
         farm.REGISTER_FARM_SCHEMA,
         hermes_tool(farm.handle_register_farm),
-        description="Register a farm and initial herd state",
+        description="Register a farm during setup or rare admin edits",
         emoji="🌾",
     )
     ctx.register_tool(
@@ -29,7 +37,7 @@ def register(ctx) -> None:
         TOOLSET,
         farm.ADD_PADDOCK_SCHEMA,
         hermes_tool(farm.handle_add_paddock),
-        description="Add a paddock with geometry and status",
+        description="Add a paddock during onboarding or maintenance",
         emoji="🗺️",
     )
     ctx.register_tool(
@@ -37,7 +45,7 @@ def register(ctx) -> None:
         TOOLSET,
         farm.GET_FARM_STATE_SCHEMA,
         hermes_tool(farm.handle_get_farm_state),
-        description="Get the current farm context snapshot",
+        description="Get the current farm snapshot with herds, paddocks, recent observations, and latest plan. farm_id is optional when one farm is active.",
         emoji="📋",
     )
     ctx.register_tool(
@@ -53,7 +61,7 @@ def register(ctx) -> None:
         TOOLSET,
         observe.RECORD_OBSERVATION_SCHEMA,
         hermes_tool(observe.handle_record_observation),
-        description="Record a farm observation or field note",
+        description="Record a farm observation or field note. Accepts source/content or the aliases type/text, and farm_id is optional when one farm is active.",
         emoji="👀",
     )
     ctx.register_tool(
@@ -173,7 +181,7 @@ def register(ctx) -> None:
         TOOLSET,
         brief.GENERATE_MORNING_BRIEF_SCHEMA,
         hermes_tool(brief.handle_generate_morning_brief),
-        description="Generate the current morning brief",
+        description="Generate the current morning brief and persist the recommendation plus daily brief. farm_id is optional when one farm is active.",
         emoji="🌅",
     )
     ctx.register_hook("on_session_start", runtime.on_session_start)

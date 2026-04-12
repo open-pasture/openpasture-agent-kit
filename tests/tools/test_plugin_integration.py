@@ -3,9 +3,13 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+import pytest
+
 from openpasture.domain import Observation
 from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.plugin import register
+
+pytestmark = pytest.mark.alpha
 
 
 class _FakeContext:
@@ -44,52 +48,64 @@ def test_registered_handlers_accept_hermes_kwargs(monkeypatch):
 
     ctx = _FakeContext()
     register(ctx)
+    assert "setup_initial_farm" in ctx.tools
 
     farm_result = json.loads(
-        ctx.tools["register_farm"](
-            task_id="task_register",
+        ctx.tools["setup_initial_farm"](
+            task_id="task_setup",
             name="Plugin Farm",
             timezone="America/Chicago",
             location={"longitude": -95.2, "latitude": 36.2},
             herd={"id": "herd_plugin", "species": "cattle", "count": 40},
+            paddocks=[
+                {
+                    "id": "paddock_current",
+                    "name": "Current",
+                    "status": "grazing",
+                    "geometry": [
+                        {"longitude": -95.2, "latitude": 36.2},
+                        {"longitude": -95.21, "latitude": 36.2},
+                        {"longitude": -95.21, "latitude": 36.21},
+                    ],
+                },
+                {
+                    "id": "paddock_next",
+                    "name": "Next",
+                    "status": "resting",
+                    "geometry": [
+                        {"longitude": -95.22, "latitude": 36.2},
+                        {"longitude": -95.23, "latitude": 36.2},
+                        {"longitude": -95.23, "latitude": 36.21},
+                    ],
+                },
+            ],
         )
     )
     farm_id = farm_result["farm"]["id"]
 
-    ctx.tools["add_paddock"](
-        task_id="task_paddock_current",
-        farm_id=farm_id,
-        paddock_id="paddock_current",
-        name="Current",
-        status="grazing",
-        geometry=[
-            {"longitude": -95.2, "latitude": 36.2},
-            {"longitude": -95.21, "latitude": 36.2},
-            {"longitude": -95.21, "latitude": 36.21},
-        ],
+    state_result = json.loads(
+        ctx.tools["get_farm_state"](
+            task_id="task_state",
+        )
     )
+    assert state_result["farm"]["id"] == farm_id
+
     ctx.tools["add_paddock"](
-        task_id="task_paddock_next",
+        task_id="task_paddock_maintenance",
         farm_id=farm_id,
-        paddock_id="paddock_next",
-        name="Next",
+        paddock_id="paddock_spare",
+        name="Spare",
         status="resting",
         geometry=[
-            {"longitude": -95.22, "latitude": 36.2},
-            {"longitude": -95.23, "latitude": 36.2},
-            {"longitude": -95.23, "latitude": 36.21},
+            {"longitude": -95.24, "latitude": 36.2},
+            {"longitude": -95.25, "latitude": 36.2},
+            {"longitude": -95.25, "latitude": 36.21},
         ],
-    )
-    ctx.tools["set_herd_position"](
-        task_id="task_set_position",
-        herd_id="herd_plugin",
-        paddock_id="paddock_current",
     )
     ctx.tools["record_observation"](
         task_id="task_observation",
-        farm_id=farm_id,
-        source="field",
-        content="Current paddock is getting short and muddy near the water point.",
+        type="field",
+        text="Current paddock is getting short and muddy near the water point.",
         paddock_id="paddock_current",
         herd_id="herd_plugin",
         tags=["field-note"],
@@ -113,7 +129,6 @@ def test_registered_handlers_accept_hermes_kwargs(monkeypatch):
     brief_result = json.loads(
         ctx.tools["generate_morning_brief"](
             task_id="task_brief",
-            farm_id=farm_id,
         )
     )
     assert brief_result["brief"]["recommendation"]["action"] == "MOVE"

@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+import pytest
+
 from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.runtime import get_brief_scheduler, get_store, initialize
 from openpasture.tools.farm import handle_add_paddock, handle_register_farm, handle_set_herd_position
 from openpasture.tools.observe import handle_record_observation
+
+pytestmark = pytest.mark.alpha
 
 
 def test_register_farm_schedules_daily_brief(monkeypatch):

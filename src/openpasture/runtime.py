@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from logging import getLogger
 from pathlib import Path
@@ -20,6 +21,20 @@ if TYPE_CHECKING:
     from openpasture.briefing.scheduler import MorningBriefScheduler
 
 logger = getLogger(__name__)
+
+_ONBOARDING_TOOL_RECIPE = json.dumps(
+    {
+        "name": "Willow Creek",
+        "timezone": "America/Chicago",
+        "herd": {"id": "herd_1", "species": "cattle", "count": 28},
+        "paddocks": [
+            {"id": "paddock_home", "name": "Home", "status": "grazing"},
+            {"id": "paddock_north", "name": "North", "status": "resting"},
+        ],
+        "current_paddock_id": "paddock_home",
+    },
+    sort_keys=True,
+)
 
 _store: FarmStore | None = None
 _knowledge_store: KnowledgeStore | None = None
@@ -256,30 +271,166 @@ def get_soul_prompt() -> str:
     return _soul_prompt
 
 
-def build_session_context() -> str:
-    notices = get_runtime_notices()
+def _list_farms_safe() -> list[Any]:
+    try:
+        return list(get_store().list_farms())
+    except (AttributeError, NotImplementedError):
+        return []
+
+
+def _format_farm_inventory(farms: list[Any], *, limit: int = 3) -> str:
+    preview = ", ".join(f"{farm.id} ({farm.name})" for farm in farms[:limit])
+    if len(farms) > limit:
+        preview = f"{preview}, +{len(farms) - limit} more"
+    return preview
+
+
+def _resolve_active_farm_id() -> str | None:
     farm_id = get_active_farm_id()
-    if not farm_id:
-        lines = [f"Notice: {notice}" for notice in notices]
+    if farm_id and get_store().get_farm(farm_id) is not None:
+        return farm_id
+    farms = _list_farms_safe()
+    if len(farms) == 1:
+        set_active_farm_id(farms[0].id)
+        return farms[0].id
+    return None
+
+
+def resolve_farm_id(args: MutableMapping[str, object] | dict[str, object], *, key: str = "farm_id") -> str:
+    explicit_farm_id = args.get(key)
+    if isinstance(explicit_farm_id, str) and explicit_farm_id.strip():
+        farm_id = explicit_farm_id.strip()
+        set_active_farm_id(farm_id)
+        return farm_id
+
+    if active_farm_id := _resolve_active_farm_id():
+        return active_farm_id
+
+    farms = _list_farms_safe()
+    if not farms:
+        raise ValueError("No farm is loaded yet. Register a farm first or pass 'farm_id' explicitly.")
+    raise ValueError(
+        "Multiple farms are registered for this instance. Pass 'farm_id' explicitly for farm-specific tools."
+    )
+
+
+def _resolve_context_farm() -> Any | None:
+    farm_id = _resolve_active_farm_id()
+    if farm_id is None:
+        return None
+    return get_store().get_farm(farm_id)
+
+
+def _onboarding_gaps(farm_id: str) -> list[str]:
+    store = get_store()
+    paddocks = store.list_paddocks(farm_id)
+    herds = store.get_herds(farm_id)
+    gaps: list[str] = []
+    if not herds:
+        gaps.append("create the first herd")
+    if not paddocks:
+        gaps.append("add at least one paddock")
+    if herds and not all(herd.current_paddock_id for herd in herds):
+        gaps.append("set the herd's current paddock before the first brief")
+    return gaps
+
+
+def _build_workflow_context() -> list[str]:
+    farm = _resolve_context_farm()
+    if farm is None:
+        farms = _list_farms_safe()
+        if farms:
+            return [
+                "Workflow mode: daily-operations",
+                "Multiple farms are registered for this instance. Pass farm_id explicitly for farm-specific tools until one farm becomes active.",
+                f"Known farms: {_format_farm_inventory(farms)}",
+            ]
+        return [
+            "Workflow mode: onboarding",
+            "Prefer the setup_initial_farm tool for first-run setup.",
+            "Do not call setup_initial_farm with empty args.",
+            f"Preferred setup_initial_farm payload shape: {_ONBOARDING_TOOL_RECIPE}",
+            "Create exactly one farm by default. Do not add another farm unless the operator explicitly asks for it and passes allow_additional_farm=true.",
+            "Keep onboarding flexible for map screenshots, rough boundaries, and landmark clues, but persist structured geometry when possible and store any remaining clues in notes.",
+            "After setup, record a field observation from the current paddock before expecting a strong MOVE or STAY brief.",
+        ]
+
+    gaps = _onboarding_gaps(farm.id)
+    if gaps:
+        return [
+            "Workflow mode: onboarding",
+            "Prefer the setup_initial_farm tool until the farm, first herd, paddocks, and herd position are all set.",
+            "Do not call setup_initial_farm with empty args.",
+            f"Preferred setup_initial_farm payload shape: {_ONBOARDING_TOOL_RECIPE}",
+            "Onboarding remaining: " + "; ".join(gaps),
+            "Use setup/admin tools only to finish onboarding or make an intentional farm change.",
+            "If the user asks for a first brief right after setup, explain that a fresh field observation improves the recommendation.",
+        ]
+
+    return [
+        "Workflow mode: daily-operations",
+        "Focus on observations, morning briefs, movement decisions, and occasional maintenance for the active farm.",
+        "Treat register_farm and setup_initial_farm as rare setup/admin tools, not part of the normal daily loop.",
+    ]
+
+
+def _build_pre_llm_guardrails() -> list[str]:
+    farm = _resolve_context_farm()
+    if farm is None:
+        if _list_farms_safe():
+            return [
+                "When multiple farms exist and no active farm is selected, ask or infer the correct farm_id before farm-specific tool calls.",
+            ]
+        return [
+            "If the user's latest message already contains first-run farm details, call setup_initial_farm immediately using those details.",
+            "Never probe setup_initial_farm with empty args or {}.",
+            f"Preferred setup_initial_farm payload shape: {_ONBOARDING_TOOL_RECIPE}",
+        ]
+
+    gaps = _onboarding_gaps(farm.id)
+    if gaps:
+        return [
+            "While onboarding is still incomplete, use setup_initial_farm or the minimum setup/admin tools needed to finish setup.",
+            "Never probe setup_initial_farm with empty args or {}.",
+        ]
+
+    return [
+        "For daily operations, prefer the active farm context and avoid redundant lookup calls when one farm is already active.",
+    ]
+
+
+def _format_known_paddocks(paddocks: list[Any], *, limit: int = 5) -> str:
+    preview = ", ".join(f"{paddock.id} ({paddock.name})" for paddock in paddocks[:limit])
+    if len(paddocks) > limit:
+        preview = f"{preview}, +{len(paddocks) - limit} more"
+    return preview
+
+
+def build_session_context(*, include_workflow_guidance: bool = True) -> str:
+    notices = get_runtime_notices()
+    lines = [f"Notice: {notice}" for notice in notices]
+    if include_workflow_guidance:
+        lines.extend(_build_workflow_context())
+
+    farm = _resolve_context_farm()
+    if farm is None:
+        farms = _list_farms_safe()
+        if farms:
+            lines.append(f"Known farms: {_format_farm_inventory(farms)}")
         lines.append("No active farm is loaded yet.")
         return "\n".join(lines)
 
     store = get_store()
-    farm = store.get_farm(farm_id)
-    if farm is None:
-        lines = [f"Notice: {notice}" for notice in notices]
-        lines.append("No active farm is loaded yet.")
-        return "\n".join(lines)
-
+    farm_id = farm.id
     paddocks = store.list_paddocks(farm_id)
     herds = store.get_herds(farm_id)
     latest_plan = store.get_latest_plan(farm_id)
     recent_obs = store.get_recent_observations(farm_id, days=3)
 
-    lines = [f"Notice: {notice}" for notice in notices]
     lines.extend(
         [
         f"Active farm: {farm.name}",
+        f"Active farm id: {farm.id}",
         f"Timezone: {farm.timezone}",
         f"Paddocks: {len(paddocks)}",
         f"Herds: {len(herds)}",
@@ -287,7 +438,10 @@ def build_session_context() -> str:
     )
     if herds:
         herd = herds[0]
+        lines.append(f"Primary herd id: {herd.id}")
         lines.append(f"Primary herd: {herd.species} ({herd.count}) in paddock {herd.current_paddock_id or 'unknown'}")
+    if paddocks:
+        lines.append(f"Known paddocks: {_format_known_paddocks(paddocks)}")
     if latest_plan:
         lines.append(
             f"Latest plan: {latest_plan.action} on {latest_plan.for_date.isoformat()} ({latest_plan.status})"
@@ -336,7 +490,12 @@ def on_session_start(*args: object, **kwargs: object) -> str:
 
 def pre_llm_call(*args: object, **kwargs: object) -> str:
     """Best-effort hook to inject the agent voice before model calls."""
-    text = f"{get_soul_prompt()}\n\nCurrent context:\n{build_session_context()}"
+    guardrails = "\n".join(_build_pre_llm_guardrails())
+    text = (
+        f"{get_soul_prompt()}\n\n"
+        f"Live tool guardrails:\n{guardrails}\n\n"
+        f"Current context:\n{build_session_context(include_workflow_guidance=False)}"
+    )
     payload = _find_payload(args, kwargs)
     if payload is not None:
         _inject_system_text(payload, text)

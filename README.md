@@ -14,6 +14,7 @@ The agent is the product. The hosted offering is a wrapper around the same core.
 ## What It Does
 
 - stores farms, paddocks, herd position, and observations in local SQLite,
+- uses a preferred first-run onboarding workflow to create the initial farm state,
 - auto-loads foundational grazing knowledge on first run,
 - ingests curated grazing knowledge from YouTube transcripts and structured notes,
 - stores farm geometry, herd state, and observations,
@@ -30,7 +31,7 @@ The agent is the product. The hosted offering is a wrapper around the same core.
 4. Start talking to the agent.
 
 ```bash
-pip install "git+https://github.com/NousResearch/hermes-agent.git"
+pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
 pip install -e .
 export OPENPASTURE_STORE=sqlite
 export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
@@ -65,6 +66,15 @@ Give me today's morning brief.
 ```
 
 4. If you want to expand the ancestral knowledge base, add `FIRECRAWL_API_KEY` and use the knowledge-ingestion workflow to curate trusted sources.
+
+## Onboarding Mode
+
+First-run setup is treated as a special workflow instead of a permanently open-ended daily capability.
+
+- `setup_initial_farm` is the preferred onboarding primitive.
+- One farm per instance is the default alpha behavior.
+- Extra farm creation requires an explicit admin override.
+- Farmers can still describe land flexibly with map screenshots, rough boundaries, and landmarks; the agent should convert those inputs into structured geometry when possible and keep any unresolved clues in notes.
 
 ## Included Skills
 
@@ -119,5 +129,16 @@ What comes after alpha:
 
 - `ConvexStore` is still a stub, so hosted/cloud mode is not ready yet.
 - Satellite and photo ingestion are not implemented yet.
-- Scheduled brief delivery currently injects into the Hermes runtime when a live session is available; the hosted delivery path still needs the cloud wrapper.
+- Scheduled brief delivery stays local to the Hermes runtime in this repo. Hosted transport orchestration still belongs in the separate cloud wrapper.
 - External web knowledge ingestion requires `FIRECRAWL_API_KEY`.
+
+## Maintainer Validation
+
+Use the reusable alpha harness after Hermes updates or plugin changes:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate automated
+uv run --python 3.11 openpasture-alpha-validate docker
+```
+
+For the full two-profile pilot validation flow, see [`docs/alpha-validation.md`](docs/alpha-validation.md).

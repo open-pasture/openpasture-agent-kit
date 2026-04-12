@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+import pytest
+
 from openpasture.domain import Observation
 from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.runtime import initialize
@@ -15,6 +17,8 @@ from openpasture.tools.farm import (
 )
 from openpasture.tools.observe import handle_record_observation
 from openpasture.tools.plan import handle_approve_plan
+
+pytestmark = pytest.mark.alpha
 
 
 def test_field_ready_flow_moves_herd_using_public_tools(monkeypatch):
@@ -87,7 +91,7 @@ def test_field_ready_flow_moves_herd_using_public_tools(monkeypatch):
     handle_record_observation(
         {
             "farm_id": farm_id,
-            "source": "manual",
+            "source": "field_observation",
             "content": "Current paddock is getting short and muddy near the water point.",
             "paddock_id": "paddock_current",
             "herd_id": "herd_1",

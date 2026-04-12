@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from openpasture.domain import Observation
-from openpasture.runtime import get_store, set_active_farm_id
+from openpasture.domain import Observation, normalize_observation_source
+from openpasture.runtime import get_store, resolve_farm_id, set_active_farm_id
 from openpasture.tools._common import (
+    apply_argument_aliases,
     json_response,
     make_id,
     optional_str,
@@ -18,18 +19,41 @@ from openpasture.tools._common import (
 
 RECORD_OBSERVATION_SCHEMA = {
     "type": "object",
+    "description": "Record a field note or other farm observation. When exactly one farm is active, farm_id can be omitted. Accepts source/content or the aliases type/text.",
     "properties": {
-        "farm_id": {"type": "string"},
-        "source": {"type": "string"},
-        "content": {"type": "string"},
-        "observed_at": {"type": "string"},
-        "paddock_id": {"type": "string"},
-        "herd_id": {"type": "string"},
-        "metrics": {"type": "object"},
-        "media_url": {"type": "string"},
-        "tags": {"type": "array"},
+        "farm_id": {
+            "type": "string",
+            "description": "Farm id. Optional when exactly one farm is active for this instance.",
+        },
+        "source": {
+            "type": "string",
+            "description": "Observation source such as field, note, photo, or weather. Alias: type.",
+        },
+        "type": {
+            "type": "string",
+            "description": "Alias for source. Useful when the model emits type instead of source.",
+        },
+        "content": {
+            "type": "string",
+            "description": "Observation text. Alias: text.",
+        },
+        "text": {
+            "type": "string",
+            "description": "Alias for content. Useful when the model emits text instead of content.",
+        },
+        "observed_at": {"type": "string", "description": "Optional ISO 8601 observation timestamp."},
+        "paddock_id": {"type": "string", "description": "Optional paddock id tied to the observation."},
+        "herd_id": {"type": "string", "description": "Optional herd id tied to the observation."},
+        "metrics": {"type": "object", "description": "Optional structured metrics captured with the observation."},
+        "media_url": {"type": "string", "description": "Optional photo or media URL."},
+        "tags": {"type": "array", "description": "Optional list of observation tags."},
     },
-    "required": ["farm_id", "source", "content"],
+    "anyOf": [
+        {"required": ["source", "content"]},
+        {"required": ["source", "text"]},
+        {"required": ["type", "content"]},
+        {"required": ["type", "text"]},
+    ],
     "additionalProperties": True,
 }
 
@@ -45,12 +69,14 @@ GET_PADDOCK_STATE_SCHEMA = {
 
 def handle_record_observation(args: dict[str, object]) -> str:
     """Persist a new observation."""
+    args = apply_argument_aliases(args, {"source": ("type",), "content": ("text",)})
     store = get_store()
-    farm_id = require_str(args, "farm_id")
+    farm_id = resolve_farm_id(args)
+    source = normalize_observation_source(require_str(args, "source"))
     observation = Observation(
         id=optional_str(args, "observation_id") or make_id("observation"),
         farm_id=farm_id,
-        source=require_str(args, "source"),
+        source=source,
         observed_at=parse_datetime_value(args.get("observed_at"), default=datetime.utcnow()),
         content=require_str(args, "content"),
         paddock_id=optional_str(args, "paddock_id"),

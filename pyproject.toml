@@ -17,7 +17,7 @@ dependencies = [
   "pydantic>=2.7.0",
   "apscheduler>=3.10.4",
   "chromadb>=0.5.0",
-  "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git",
+  "hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +38,9 @@ dev = [
 [project.entry-points."hermes_agent.plugins"]
 openpasture = "openpasture.plugin"
 
+[project.scripts]
+openpasture-alpha-validate = "openpasture.validation.alpha:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 
@@ -47,7 +50,14 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+  "alpha: reusable OSS alpha validation suite",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.openpasture.alpha_validation]
+tested_hermes_version = "0.8.0"
+tested_hermes_commit = "1cec910b6a064d4e4821930be5cfaaf6145a2afd"

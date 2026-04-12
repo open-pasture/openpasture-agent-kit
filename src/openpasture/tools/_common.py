@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from functools import wraps
@@ -33,6 +34,25 @@ def optional_str(args: dict[str, object], key: str) -> str | None:
     return stripped or None
 
 
+def apply_argument_aliases(
+    args: Mapping[str, object],
+    aliases: Mapping[str, tuple[str, ...]],
+) -> dict[str, object]:
+    """Fill canonical keys from known aliases without overwriting explicit values."""
+
+    payload = dict(args)
+    for canonical, candidates in aliases.items():
+        current = payload.get(canonical)
+        if current not in (None, ""):
+            continue
+        for alias in candidates:
+            value = payload.get(alias)
+            if value not in (None, ""):
+                payload[canonical] = value
+                break
+    return payload
+
+
 def optional_float(args: dict[str, object], key: str) -> float | None:
     value = args.get(key)
     if value is None:
@@ -49,6 +69,37 @@ def optional_int(args: dict[str, object], key: str) -> int | None:
     if isinstance(value, int):
         return value
     raise ValueError(f"'{key}' must be an integer.")
+
+
+def parse_loose_int(value: object, *, key: str, default: int | None = None) -> int:
+    if value is None:
+        if default is not None:
+            return default
+        raise ValueError(f"'{key}' is required.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        match = re.search(r"-?\d+", value)
+        if match is not None:
+            return int(match.group(0))
+    raise ValueError(f"'{key}' must contain an integer value.")
+
+
+def optional_bool(args: dict[str, object], key: str) -> bool | None:
+    value = args.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes"}:
+            return True
+        if normalized in {"false", "0", "no"}:
+            return False
+    raise ValueError(f"'{key}' must be a boolean.")
 
 
 def optional_str_list(args: dict[str, object], key: str) -> list[str]:
