@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from logging import getLogger
 
 from openpasture.briefing.attention_director import AttentionDirector
 from openpasture.domain import DailyBrief, MovementDecision, Paddock
@@ -10,6 +11,9 @@ from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.knowledge.retriever import KnowledgeRetriever
 from openpasture.runtime import get_knowledge, get_store
 from openpasture.store.protocol import FarmStore
+
+FIELD_OBSERVATION_SOURCES = {"manual", "note", "photo", "field", "field-note", "farmer"}
+logger = getLogger(__name__)
 
 
 class MorningBriefAssembler:
@@ -65,7 +69,7 @@ class MorningBriefAssembler:
         )
         target_paddock = self._choose_target_paddock(paddocks, effective_paddock_id)
 
-        field_observations = [obs for obs in observations if obs.source in {"manual", "note", "photo"}]
+        field_observations = [obs for obs in observations if obs.source in FIELD_OBSERVATION_SOURCES]
         current_text = " ".join(
             obs.content.lower()
             for obs in observations
@@ -141,7 +145,11 @@ class MorningBriefAssembler:
         current_paddock_id = current_herd.current_paddock_id if current_herd else None
 
         weather_pipeline = WeatherObservationPipeline(self.store)
-        weather_observations = weather_pipeline.collect(farm_id)
+        try:
+            weather_observations = weather_pipeline.collect(farm_id)
+        except Exception:
+            logger.warning("Weather pipeline raised unexpectedly for farm '%s'. Continuing without weather.", farm_id)
+            weather_observations = []
         for observation in weather_observations:
             self.store.record_observation(observation)
 

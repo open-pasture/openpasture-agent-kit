@@ -16,3 +16,5 @@ def test_lesson_extractor_parses_seed_markdown():
     assert entries
     assert any(entry.entry_type == "principle" for entry in entries)
     assert any("move animals daily" in entry.content.lower() for entry in entries)
+    assert all(entry.sources for entry in entries)
+    assert all(entry.category == "grazing-management" for entry in entries)

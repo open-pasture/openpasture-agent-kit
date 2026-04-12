@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from openpasture.domain import Farm, GeoPolygon, Herd, Paddock, WaterSource
-from openpasture.runtime import get_store, set_active_farm_id
+from openpasture.runtime import get_store, schedule_farm_brief, set_active_farm_id
 from openpasture.tools._common import (
     json_response,
     make_id,
@@ -127,6 +127,7 @@ def handle_register_farm(args: dict[str, object]) -> str:
         farm.water_sources = water_sources
 
     set_active_farm_id(farm.id)
+    schedule_farm_brief(farm.id)
     return json_response(status="ok", farm=farm, herds=created_herds)
 
 

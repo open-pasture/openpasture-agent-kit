@@ -198,3 +198,75 @@ def test_observation_with_herd_and_paddock_infers_current_position(monkeypatch):
     assert plan["action"] == "MOVE"
     assert plan["source_paddock_id"] == "paddock_current"
     assert plan["target_paddock_id"] == "paddock_next"
+
+
+def test_brief_generation_degrades_gracefully_when_weather_fails(monkeypatch):
+    initialize()
+
+    def broken_collect(self, farm_id: str):
+        raise OSError(f"weather offline for {farm_id}")
+
+    monkeypatch.setattr(WeatherObservationPipeline, "collect", broken_collect)
+
+    register_result = json.loads(
+        handle_register_farm(
+            {
+                "name": "Weather Failure Farm",
+                "timezone": "America/Chicago",
+                "location": {"longitude": -95.2, "latitude": 36.2},
+                "herd": {
+                    "id": "herd_1",
+                    "species": "cattle",
+                    "count": 40,
+                },
+            }
+        )
+    )
+    farm_id = register_result["farm"]["id"]
+
+    handle_add_paddock(
+        {
+            "farm_id": farm_id,
+            "paddock_id": "paddock_current",
+            "name": "Current",
+            "status": "grazing",
+            "geometry": [
+                {"longitude": -95.2, "latitude": 36.2},
+                {"longitude": -95.21, "latitude": 36.2},
+                {"longitude": -95.21, "latitude": 36.21},
+            ],
+        }
+    )
+    handle_add_paddock(
+        {
+            "farm_id": farm_id,
+            "paddock_id": "paddock_next",
+            "name": "Next",
+            "status": "resting",
+            "geometry": [
+                {"longitude": -95.22, "latitude": 36.2},
+                {"longitude": -95.23, "latitude": 36.2},
+                {"longitude": -95.23, "latitude": 36.21},
+            ],
+        }
+    )
+    handle_set_herd_position(
+        {
+            "herd_id": "herd_1",
+            "paddock_id": "paddock_current",
+        }
+    )
+    handle_record_observation(
+        {
+            "farm_id": farm_id,
+            "source": "field",
+            "content": "Current paddock is getting short and muddy near the water point.",
+            "paddock_id": "paddock_current",
+            "herd_id": "herd_1",
+            "tags": ["field-note"],
+        }
+    )
+
+    brief_result = json.loads(handle_generate_morning_brief({"farm_id": farm_id}))
+
+    assert brief_result["brief"]["recommendation"]["action"] == "MOVE"

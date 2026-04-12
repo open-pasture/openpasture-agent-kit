@@ -5,6 +5,8 @@ from __future__ import annotations
 from openpasture.runtime import get_store
 from openpasture.store.protocol import FarmStore
 
+FIELD_OBSERVATION_SOURCES = {"manual", "note", "photo", "field", "field-note", "farmer"}
+
 
 class AttentionDirector:
     """Chooses the observation that would most reduce current uncertainty."""
@@ -14,7 +16,7 @@ class AttentionDirector:
 
     def next_best_question(self, farm_id: str) -> str:
         observations = self.store.get_recent_observations(farm_id, days=7)
-        field_observations = [obs for obs in observations if obs.source in {"manual", "note", "photo"}]
+        field_observations = [obs for obs in observations if obs.source in FIELD_OBSERVATION_SOURCES]
         weather_observations = [obs for obs in observations if obs.source == "weather"]
         latest_plan = self.store.get_latest_plan(farm_id)
 

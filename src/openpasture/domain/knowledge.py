@@ -17,6 +17,7 @@ class SourceRecord:
     source_title: str
     source_author: str
     source_kind: str = "youtube"
+    segment: str | None = None
 
 
 @dataclass(slots=True)
@@ -27,7 +28,17 @@ class KnowledgeEntry:
     farm_id: str | None
     entry_type: KnowledgeType
     content: str
-    source: SourceRecord
+    sources: list[SourceRecord]
     created_at: datetime = field(default_factory=datetime.utcnow)
     tags: list[str] = field(default_factory=list)
+    category: str | None = None
     embedding_id: str | None = None
+
+    @property
+    def primary_source(self) -> SourceRecord | None:
+        return self.sources[0] if self.sources else None
+
+    @property
+    def primary_author(self) -> str:
+        source = self.primary_source
+        return source.source_author if source is not None else ""

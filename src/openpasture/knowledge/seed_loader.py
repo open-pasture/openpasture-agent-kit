@@ -7,14 +7,14 @@ from pathlib import Path
 from openpasture.domain import KnowledgeEntry
 from openpasture.knowledge.chunker import LessonExtractor
 from openpasture.knowledge.embedder import KnowledgeEmbedder
-from openpasture.store.protocol import FarmStore
+from openpasture.store.knowledge_protocol import KnowledgeStore
 
 
 def _seed_root() -> Path:
     return Path(__file__).resolve().parents[3] / "seed" / "principles"
 
 
-def load_seed_knowledge(store: FarmStore, embedder: KnowledgeEmbedder) -> list[KnowledgeEntry]:
+def load_seed_knowledge(store: KnowledgeStore, embedder: KnowledgeEmbedder) -> list[KnowledgeEntry]:
     extractor = LessonExtractor()
     entries: list[KnowledgeEntry] = []
 
@@ -38,5 +38,5 @@ def load_seed_knowledge(store: FarmStore, embedder: KnowledgeEmbedder) -> list[K
     embedding_ids = embedder.embed(entries)
     for entry, embedding_id in zip(entries, embedding_ids, strict=False):
         entry.embedding_id = embedding_id
-    store.store_knowledge(entries)
+    store.store_entries(entries)
     return entries

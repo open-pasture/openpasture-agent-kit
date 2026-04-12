@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from logging import getLogger
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
 from openpasture.domain import Observation
 from openpasture.store.protocol import FarmStore
+
+logger = getLogger(__name__)
 
 
 class WeatherObservationPipeline:
@@ -33,8 +36,12 @@ class WeatherObservationPipeline:
             "forecast_days": 3,
             "timezone": farm.timezone,
         }
-        with urlopen(f"{self.base_url}?{urlencode(params)}", timeout=10) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        try:
+            with urlopen(f"{self.base_url}?{urlencode(params)}", timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except Exception:
+            logger.warning("Weather collection failed for farm '%s'. Continuing without weather context.", farm_id)
+            return []
 
         current = payload.get("current", {})
         daily = payload.get("daily", {})

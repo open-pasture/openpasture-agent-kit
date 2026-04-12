@@ -1,5 +1,5 @@
 name: openpasture
-version: 0.1.0
+version: 0.1.0-alpha
 description: Regenerative grazing advisor for pasture-raised livestock farmers.
 provides_tools:
   - register_farm
@@ -10,8 +10,17 @@ provides_tools:
   - get_paddock_state
   - movement_decision
   - approve_plan
-  - ingest_youtube
+  - store_lesson
+  - update_lesson
+  - find_similar_lessons
+  - queue_source
+  - process_queue
   - search_knowledge
+  - list_knowledge_sources
+  - create_ingestion_batch
+  - get_ingestion_batch_status
+  - claim_ingestion_batch_item
+  - record_ingestion_batch_result
   - generate_morning_brief
 provides_hooks:
   - on_session_start

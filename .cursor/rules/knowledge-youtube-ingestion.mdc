@@ -1,0 +1,17 @@
+---
+description: Prefer transcript-first YouTube ingestion with Firecrawl fallback search and interact steps
+alwaysApply: true
+---
+
+# YouTube Knowledge Ingestion
+
+When ingesting knowledge from YouTube sources:
+
+- Start with Firecrawl scrape on the watch URL.
+- If the scrape lacks spoken transcript text, search the web for the exact video title plus the channel name using Firecrawl with `--scrape`.
+- If the title-based search still looks weak, retry with the video ID plus `YouTube` and the channel name.
+- Use transcript-bearing search results when the watch-page scrape is metadata-only.
+- Treat either a `## Transcript` section or a `Search transcript` block as usable transcript evidence.
+- If search still does not expose transcript text, try Firecrawl interact to open the transcript UI.
+- Do not store durable lessons from title, comments, recommendations, or metadata alone.
+- If transcript evidence is unavailable, skip the source or leave it queued for later review.

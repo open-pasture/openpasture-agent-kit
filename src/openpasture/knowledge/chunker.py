@@ -89,14 +89,18 @@ class LessonExtractor:
                     farm_id=None,
                     entry_type=self._classify(heading, normalized),
                     content=normalized,
-                    source=SourceRecord(
-                        source_url=source_url,
-                        source_title=source_title,
-                        source_author=source_author,
-                        source_kind=source_kind,
-                    ),
+                    sources=[
+                        SourceRecord(
+                            source_url=source_url,
+                            source_title=source_title,
+                            source_author=source_author,
+                            source_kind=source_kind,
+                            segment=heading,
+                        )
+                    ],
                     created_at=datetime.utcnow(),
                     tags=self._tags(heading, normalized),
+                    category="grazing-management",
                 )
             )
         return entries

@@ -50,3 +50,16 @@ The result should ground recommendations in explicit lessons and make the reason
 ## Seed Knowledge
 
 The repository includes starter knowledge based on cross-cutting principles and named practitioners. This seed exists to make the first local test useful before a farmer adds their own sources.
+
+## Batch Operations
+
+Author-scale ingestion should use batch manifests and queue-driven processing rather than one-off scripts. The reusable runner now supports:
+
+- creating an ingestion batch from discovered sources,
+- claiming one source at a time for agent processing,
+- recording source-level results,
+- inspecting batch totals and failures.
+
+## Productization
+
+For the product path of the shared ancestral corpus, see `docs/knowledge-productization.md`.

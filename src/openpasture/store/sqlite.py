@@ -15,11 +15,9 @@ from openpasture.domain import (
     GeoPoint,
     GeoPolygon,
     Herd,
-    KnowledgeEntry,
     MovementDecision,
     Observation,
     Paddock,
-    SourceRecord,
     WaterSource,
 )
 
@@ -100,7 +98,6 @@ class SQLiteStore:
     def __init__(self, data_dir: str | Path):
         self.data_dir = Path(data_dir)
         self.db_path = self.data_dir / "farm.db"
-        self._fts_enabled = False
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -199,23 +196,6 @@ class SQLiteStore:
             )
             connection.execute(
                 """
-                CREATE TABLE IF NOT EXISTS knowledge_entries (
-                    id TEXT PRIMARY KEY,
-                    farm_id TEXT,
-                    entry_type TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    source_url TEXT NOT NULL,
-                    source_title TEXT NOT NULL,
-                    source_author TEXT NOT NULL,
-                    source_kind TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    tags TEXT NOT NULL,
-                    embedding_id TEXT
-                )
-                """
-            )
-            connection.execute(
-                """
                 CREATE TABLE IF NOT EXISTS daily_briefs (
                     id TEXT PRIMARY KEY,
                     farm_id TEXT NOT NULL,
@@ -229,17 +209,6 @@ class SQLiteStore:
                 )
                 """
             )
-
-            try:
-                connection.execute(
-                    """
-                    CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts
-                    USING fts5(id UNINDEXED, farm_id UNINDEXED, content, tags, source_title, source_author)
-                    """
-                )
-                self._fts_enabled = True
-            except sqlite3.OperationalError:
-                self._fts_enabled = False
 
     def _farm_from_row(self, row: sqlite3.Row) -> Farm:
         return Farm(
@@ -311,23 +280,6 @@ class SQLiteStore:
             created_at=_datetime_from_text(row["created_at"]),
         )
 
-    def _knowledge_entry_from_row(self, row: sqlite3.Row) -> KnowledgeEntry:
-        return KnowledgeEntry(
-            id=row["id"],
-            farm_id=row["farm_id"],
-            entry_type=row["entry_type"],
-            content=row["content"],
-            source=SourceRecord(
-                source_url=row["source_url"],
-                source_title=row["source_title"],
-                source_author=row["source_author"],
-                source_kind=row["source_kind"],
-            ),
-            created_at=_datetime_from_text(row["created_at"]),
-            tags=_json_loads(row["tags"], []),
-            embedding_id=row["embedding_id"],
-        )
-
     def _daily_brief_from_row(self, row: sqlite3.Row) -> DailyBrief:
         recommendation = self.get_plan(row["recommendation_id"])
         if recommendation is None:
@@ -358,6 +310,11 @@ class SQLiteStore:
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM farms WHERE id = ?", (farm_id,)).fetchone()
         return None if row is None else self._farm_from_row(row)
+
+    def list_farms(self) -> list[Farm]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM farms ORDER BY name ASC").fetchall()
+        return [self._farm_from_row(row) for row in rows]
 
     def create_farm(self, farm: Farm) -> str:
         with self._connect() as connection:
@@ -600,105 +557,6 @@ class SQLiteStore:
                 """,
                 (status, feedback, plan_id),
             )
-
-    def store_knowledge(self, entries: list[KnowledgeEntry]) -> list[str]:
-        ids: list[str] = []
-        with self._connect() as connection:
-            for entry in entries:
-                connection.execute(
-                    """
-                    INSERT OR REPLACE INTO knowledge_entries (
-                        id, farm_id, entry_type, content, source_url, source_title,
-                        source_author, source_kind, created_at, tags, embedding_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        entry.id,
-                        entry.farm_id,
-                        entry.entry_type,
-                        entry.content,
-                        entry.source.source_url,
-                        entry.source.source_title,
-                        entry.source.source_author,
-                        entry.source.source_kind,
-                        _datetime_to_text(entry.created_at),
-                        _json_dumps(entry.tags),
-                        entry.embedding_id,
-                    ),
-                )
-                if self._fts_enabled:
-                    connection.execute("DELETE FROM knowledge_fts WHERE id = ?", (entry.id,))
-                    connection.execute(
-                        """
-                        INSERT INTO knowledge_fts (id, farm_id, content, tags, source_title, source_author)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            entry.id,
-                            entry.farm_id,
-                            entry.content,
-                            " ".join(entry.tags),
-                            entry.source.source_title,
-                            entry.source.source_author,
-                        ),
-                    )
-                ids.append(entry.id)
-        return ids
-
-    def search_knowledge(self, query: str, farm_id: str | None = None, limit: int = 5) -> list[KnowledgeEntry]:
-        with self._connect() as connection:
-            rows: list[sqlite3.Row]
-            if self._fts_enabled:
-                match_query = " ".join(part for part in query.split() if part) or query
-                try:
-                    if farm_id:
-                        rows = connection.execute(
-                            """
-                            SELECT ke.* FROM knowledge_fts fts
-                            JOIN knowledge_entries ke ON ke.id = fts.id
-                            WHERE knowledge_fts MATCH ? AND (ke.farm_id = ? OR ke.farm_id IS NULL)
-                            LIMIT ?
-                            """,
-                            (match_query, farm_id, limit),
-                        ).fetchall()
-                    else:
-                        rows = connection.execute(
-                            """
-                            SELECT ke.* FROM knowledge_fts fts
-                            JOIN knowledge_entries ke ON ke.id = fts.id
-                            WHERE knowledge_fts MATCH ?
-                            LIMIT ?
-                            """,
-                            (match_query, limit),
-                        ).fetchall()
-                except sqlite3.OperationalError:
-                    rows = []
-            else:
-                rows = []
-
-            if not rows:
-                like_query = f"%{query.lower()}%"
-                if farm_id:
-                    rows = connection.execute(
-                        """
-                        SELECT * FROM knowledge_entries
-                        WHERE (farm_id = ? OR farm_id IS NULL)
-                          AND (lower(content) LIKE ? OR lower(tags) LIKE ? OR lower(source_title) LIKE ?)
-                        LIMIT ?
-                        """,
-                        (farm_id, like_query, like_query, like_query, limit),
-                    ).fetchall()
-                else:
-                    rows = connection.execute(
-                        """
-                        SELECT * FROM knowledge_entries
-                        WHERE lower(content) LIKE ? OR lower(tags) LIKE ? OR lower(source_title) LIKE ?
-                        LIMIT ?
-                        """,
-                        (like_query, like_query, like_query, limit),
-                    ).fetchall()
-
-        return [self._knowledge_entry_from_row(row) for row in rows]
 
     def save_daily_brief(self, brief: DailyBrief) -> str:
         with self._connect() as connection:

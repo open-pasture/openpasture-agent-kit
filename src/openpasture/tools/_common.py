@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
-from typing import Any
+from functools import wraps
+from typing import Any, Callable, Mapping
 from uuid import uuid4
 
 from openpasture.domain import GeoPoint, GeoPolygon
@@ -150,3 +151,43 @@ def serialize_value(value: object) -> object:
 
 def json_response(**payload: object) -> str:
     return json.dumps({key: serialize_value(value) for key, value in payload.items()}, indent=2, sort_keys=True)
+
+
+_HERMES_INTERNAL_KEYS = {"task_id", "tool_call_id"}
+
+
+def normalize_tool_args(
+    args: Mapping[str, object] | None = None,
+    kwargs: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Merge direct handler args with Hermes-injected kwargs.
+
+    Hermes calls tool handlers with named arguments and may inject metadata such
+    as ``task_id``. The repo's unit tests call handlers directly with a single
+    payload dict, so this helper supports both entry points.
+    """
+
+    payload: dict[str, object] = {}
+    if args is not None:
+        payload.update(dict(args))
+    if kwargs is not None:
+        payload.update({key: value for key, value in kwargs.items() if key not in _HERMES_INTERNAL_KEYS})
+    return payload
+
+
+def hermes_tool(
+    handler: Callable[[dict[str, object]], str],
+) -> Callable[..., str]:
+    """Adapt a plain payload handler to Hermes' callback signature."""
+
+    @wraps(handler)
+    def wrapped(*args: object, **kwargs: object) -> str:
+        if len(args) > 1:
+            raise TypeError(f"{handler.__name__} expected at most one positional payload argument.")
+        payload_arg = args[0] if args else None
+        if payload_arg is not None and not isinstance(payload_arg, Mapping):
+            raise TypeError(f"{handler.__name__} expected a mapping payload, got {type(payload_arg).__name__}.")
+        payload = normalize_tool_args(payload_arg, kwargs)
+        return handler(payload)
+
+    return wrapped

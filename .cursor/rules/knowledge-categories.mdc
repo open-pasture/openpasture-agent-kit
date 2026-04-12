@@ -1,0 +1,14 @@
+---
+description: Keep ancestral knowledge categories simple and reusable
+alwaysApply: true
+---
+
+# Knowledge Category Guidance
+
+When working on ancestral knowledge extraction or storage:
+
+- Reuse an existing category before creating a new one.
+- Prefer broad, durable terms such as `genetics`, `forage`, or `infrastructure`.
+- Avoid near-synonyms. If `genetics` is already in use, do not switch to `breeding`.
+- Use tags for specific products, breeds, species, and seasonal context.
+- Read `seed/knowledge-categories.md` before introducing a new category.

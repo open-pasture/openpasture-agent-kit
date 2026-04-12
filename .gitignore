@@ -11,8 +11,11 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+.firecrawl/
 dist/
 build/
 *.egg-info/
 .DS_Store
 .openpasture/
+knowledge-batches/
+uv.lock
