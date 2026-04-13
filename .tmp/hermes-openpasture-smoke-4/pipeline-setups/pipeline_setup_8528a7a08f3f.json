@@ -1,0 +1,41 @@
+{
+  "collection_goal": null,
+  "created_at": "2026-04-13T04:20:02.529492",
+  "farm_id": "farm_e3b7a3e1973b",
+  "id": "pipeline_setup_8528a7a08f3f",
+  "interactive_live_view_url": "https://liveview.firecrawl.dev/aHR0cHM6Ly9icm93c2VyLmZpcmVjcmF3bC5kZXYvdmlldy8zMTUzNjEzZDIxYzc2N2ZkLz90b2tlbj1iZGVjZDA5ZDI4Zjc3N2Y4NDljMjFmYTgxODc1ZDZlMjhmNGY5OGViOTI1YjFkMjY2MTNkZjNiNzRlMGEyNjE0",
+  "last_interaction": {
+    "instruction": "Inspect the current page without changing it. Return strict JSON only with this shape: {\"authenticated\": boolean, \"current_url\": string, \"page_title\": string, \"on_login_page\": boolean, \"summary\": string}. Set authenticated to true only if the current page is inside the logged-in app and no login form is blocking access.",
+    "output": "```json\n{\n  \"authenticated\": false,\n  \"current_url\": \"https://webapp.spypoint.com/login\",\n  \"page_title\": \"Login - Spypoint\",\n  \"on_login_page\": true,\n  \"summary\": \"The current page is the login page for Spypoint. It contains a sign-in form with fields for email and password, and a login button. The user is not authenticated.\"\n}\n```"
+  },
+  "last_page": {
+    "markdown": "[Go to spypoint.com](https://www.spypoint.com/en)\n\n# Sign in\n\nDon't have an account?[Create an account](https://webapp.spypoint.com/register)\n\nEmail address\n\nEmail address\n\nPassword\n\nPassword\n\nLogin\n\n[Forgot password?](https://webapp.spypoint.com/reset-password)\n\nreCAPTCHA\n\nRecaptcha requires verification.\n\nprotected by **reCAPTCHA**",
+    "metadata": {
+      "concurrencyLimited": false,
+      "contentType": "text/html",
+      "creditsUsed": 1,
+      "description": "Login to manage your account and view your photos",
+      "emotion-insertion-point": "",
+      "favicon": "https://webapp.spypoint.com/favicon.ico",
+      "language": "en",
+      "proxyUsed": "basic",
+      "scrapeId": "019d8511-42e2-75a0-a9ba-8bf4caaf86ad",
+      "sourceURL": "https://webapp.spypoint.com/",
+      "statusCode": 200,
+      "theme-color": "#000000",
+      "timezone": "America/New_York",
+      "title": "Login - Spypoint",
+      "url": "https://webapp.spypoint.com/login",
+      "viewport": "minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
+    }
+  },
+  "last_target_url": "https://webapp.spypoint.com/login",
+  "live_view_url": "https://liveview.firecrawl.dev/d3NzOi8vYnJvd3Nlci5maXJlY3Jhd2wuZGV2L3NjcmVlbmNhc3QvMzE1MzYxM2QyMWM3NjdmZD90b2tlbj01NGUxMjE4YjU4NWQ3ZmQ0OGQ0ZmIzMmE5M2NlNzg0ZjM0YmZiZTk1ZGNiOGVhN2M1ODExNDdmZmNmZDc2OWMy",
+  "login_url": "https://webapp.spypoint.com/",
+  "profile_id": "spypoint-farm_e3b7a3e1973b",
+  "scrape_id": "019d8511-42e2-75a0-a9ba-8bf4caaf86ad",
+  "status": "awaiting_login",
+  "updated_at": "2026-04-13T04:20:38.369367",
+  "vendor": "spypoint",
+  "vendor_slug": "spypoint"
+}

@@ -1,0 +1,40 @@
+{
+  "collection_goal": null,
+  "created_at": "2026-04-13T03:57:23.040021",
+  "farm_id": "farm_be7a2416885e",
+  "id": "pipeline_setup_f6d3f49ef975",
+  "interactive_live_view_url": "https://liveview.firecrawl.dev/aHR0cHM6Ly9icm93c2VyLmZpcmVjcmF3bC5kZXYvdmlldy8yNGI1ODk3OTAyMDM0YjZhLz90b2tlbj0zZTU2Y2IyNDU2MWY2ODUwN2Q5NjdlZTY1MDdhMjQ3ZThiZjViZTkxZWJiMWQzNmMzMmJkMGUyMWFiNDk5MTAy",
+  "last_interaction": {
+    "output": "Ready for login handoff."
+  },
+  "last_page": {
+    "markdown": "[Go to spypoint.com](https://www.spypoint.com/en)\n\n# Sign in\n\nDon't have an account?[Create an account](https://webapp.spypoint.com/register)\n\nEmail address\n\nEmail address\n\nPassword\n\nPassword\n\nLogin\n\n[Forgot password?](https://webapp.spypoint.com/reset-password)\n\nreCAPTCHA\n\nRecaptcha requires verification.\n\nprotected by **reCAPTCHA**",
+    "metadata": {
+      "concurrencyLimited": false,
+      "contentType": "text/html",
+      "creditsUsed": 1,
+      "description": "Login to manage your account and view your photos",
+      "emotion-insertion-point": "",
+      "favicon": "https://webapp.spypoint.com/favicon.ico",
+      "language": "en",
+      "proxyUsed": "basic",
+      "scrapeId": "019d84fd-2bca-74bc-ba69-037d3a30e571",
+      "sourceURL": "https://webapp.spypoint.com/login",
+      "statusCode": 200,
+      "theme-color": "#000000",
+      "timezone": "America/New_York",
+      "title": "Login - Spypoint",
+      "url": "https://webapp.spypoint.com/login",
+      "viewport": "minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
+    }
+  },
+  "last_target_url": "https://webapp.spypoint.com/login",
+  "live_view_url": "https://liveview.firecrawl.dev/d3NzOi8vYnJvd3Nlci5maXJlY3Jhd2wuZGV2L3NjcmVlbmNhc3QvMjRiNTg5NzkwMjAzNGI2YT90b2tlbj00NjQwZWNlYTU1ZjZmODg1MTNkNWMzZjRjOWQxOWQwYmU5NzlkZDQ3ZDU2OWVhZmViYTc3MWUyOTU5YTZhMGMx",
+  "login_url": "https://webapp.spypoint.com/",
+  "profile_id": "spypoint-farm_be7a2416885e",
+  "scrape_id": "019d84fd-2bca-74bc-ba69-037d3a30e571",
+  "status": "awaiting_login",
+  "updated_at": "2026-04-13T03:58:21.742992",
+  "vendor": "SPYPOINT",
+  "vendor_slug": "spypoint"
+}

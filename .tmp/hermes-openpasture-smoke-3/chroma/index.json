@@ -1,0 +1,364 @@
+{
+  "knowledge_greg-judy_01_core-themes": {
+    "category": "grazing-management",
+    "content": "- mob grazing, - disciplined recovery, - paying attention to animal signals, - practical paddock allocation.",
+    "created_at": "2026-04-13T04:16:50.142642",
+    "embedding_id": "knowledge_greg-judy_01_core-themes",
+    "entry_type": "signal",
+    "farm_id": null,
+    "id": "knowledge_greg-judy_01_core-themes",
+    "sources": [
+      {
+        "segment": "Core Themes",
+        "source_author": "Greg Judy",
+        "source_kind": "seed",
+        "source_title": "Greg Judy",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/greg_judy.md"
+      }
+    ],
+    "tags": [
+      "recovery",
+      "animal-signals"
+    ]
+  },
+  "knowledge_greg-judy_02_actionable-lessons": {
+    "category": "grazing-management",
+    "content": "- Daily moves are a strong default. - Back fences matter because they protect new regrowth from immediate re-bite. - Leave more than you take when possible. - A 40-plus-day recovery window is a useful baseline, then adjust for season and growth rate.",
+    "created_at": "2026-04-13T04:16:50.142654",
+    "embedding_id": "knowledge_greg-judy_02_actionable-lessons",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_greg-judy_02_actionable-lessons",
+    "sources": [
+      {
+        "segment": "Actionable Lessons",
+        "source_author": "Greg Judy",
+        "source_kind": "seed",
+        "source_title": "Greg Judy",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/greg_judy.md"
+      }
+    ],
+    "tags": [
+      "recovery",
+      "movement"
+    ]
+  },
+  "knowledge_greg-judy_03_signals-worth-encoding": {
+    "category": "grazing-management",
+    "content": "- Rumen fill helps indicate whether animals were allocated enough feed. - If cattle eagerly enter a new paddock and settle into a normal grazing pattern, allocation may be close to right. - If they show poor interest in the new break, yesterday's allocation may have been too generous. - If they continue acting hungry well after the move, yesterday may have been too tight.",
+    "created_at": "2026-04-13T04:16:50.142662",
+    "embedding_id": "knowledge_greg-judy_03_signals-worth-encoding",
+    "entry_type": "signal",
+    "farm_id": null,
+    "id": "knowledge_greg-judy_03_signals-worth-encoding",
+    "sources": [
+      {
+        "segment": "Signals Worth Encoding",
+        "source_author": "Greg Judy",
+        "source_kind": "seed",
+        "source_title": "Greg Judy",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/greg_judy.md"
+      }
+    ],
+    "tags": [
+      "recovery",
+      "movement",
+      "animal-signals"
+    ]
+  },
+  "knowledge_joel-salatin_01_core-themes": {
+    "category": "grazing-management",
+    "content": "- multi-species sequencing, - stacking enterprises, - turning movement into fertility, - managing from ecological function instead of isolated outputs.",
+    "created_at": "2026-04-13T04:16:50.142825",
+    "embedding_id": "knowledge_joel-salatin_01_core-themes",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_joel-salatin_01_core-themes",
+    "sources": [
+      {
+        "segment": "Core Themes",
+        "source_author": "Joel Salatin",
+        "source_kind": "seed",
+        "source_title": "Joel Salatin",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/joel_salatin.md"
+      }
+    ],
+    "tags": [
+      "movement"
+    ]
+  },
+  "knowledge_joel-salatin_02_actionable-lessons": {
+    "category": "grazing-management",
+    "content": "- Ruminants can lead a sequence and poultry can follow behind for sanitation and nutrient cycling. - Rotation is not only about feed use; it is also a fertility and biology program. - The farm should be read as an interacting system, not a set of separate enterprises.",
+    "created_at": "2026-04-13T04:16:50.142833",
+    "embedding_id": "knowledge_joel-salatin_02_actionable-lessons",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_joel-salatin_02_actionable-lessons",
+    "sources": [
+      {
+        "segment": "Actionable Lessons",
+        "source_author": "Joel Salatin",
+        "source_kind": "seed",
+        "source_title": "Joel Salatin",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/joel_salatin.md"
+      }
+    ],
+    "tags": [
+      "movement"
+    ]
+  },
+  "knowledge_joel-salatin_03_operational-lens": {
+    "category": "grazing-management",
+    "content": "A good recommendation should account for what enterprise follows another, not just what the current herd wants in isolation.",
+    "created_at": "2026-04-13T04:16:50.142838",
+    "embedding_id": "knowledge_joel-salatin_03_operational-lens",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_joel-salatin_03_operational-lens",
+    "sources": [
+      {
+        "segment": "Operational Lens",
+        "source_author": "Joel Salatin",
+        "source_kind": "seed",
+        "source_title": "Joel Salatin",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/joel_salatin.md"
+      }
+    ],
+    "tags": []
+  },
+  "knowledge_pasture-bird_01_core-themes": {
+    "category": "grazing-management",
+    "content": "- technology should support movement, not replace ecological thinking, - daily fresh pasture access at scale, - practical hardware aligned with animal pace and welfare, - ecological outcomes as a serious management metric.",
+    "created_at": "2026-04-13T04:16:50.142941",
+    "embedding_id": "knowledge_pasture-bird_01_core-themes",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_pasture-bird_01_core-themes",
+    "sources": [
+      {
+        "segment": "Core Themes",
+        "source_author": "Pasture Bird",
+        "source_kind": "seed",
+        "source_title": "Pasture Bird",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/pasture_bird.md"
+      }
+    ],
+    "tags": [
+      "movement",
+      "animal-signals"
+    ]
+  },
+  "knowledge_pasture-bird_02_actionable-lessons": {
+    "category": "grazing-management",
+    "content": "- Technology is useful when it preserves the core regenerative move rather than substituting for it. - Daily pasture access can be mechanized without abandoning the underlying biological logic. - Operational scale should not force the farm into confinement-style compromises.",
+    "created_at": "2026-04-13T04:16:50.142950",
+    "embedding_id": "knowledge_pasture-bird_02_actionable-lessons",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_pasture-bird_02_actionable-lessons",
+    "sources": [
+      {
+        "segment": "Actionable Lessons",
+        "source_author": "Pasture Bird",
+        "source_kind": "seed",
+        "source_title": "Pasture Bird",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/pasture_bird.md"
+      }
+    ],
+    "tags": [
+      "movement"
+    ]
+  },
+  "knowledge_richard-perkins_01_core-themes": {
+    "category": "grazing-management",
+    "content": "- whole-farm design, - infrastructure realism, - decision-making discipline, - context-aware regenerative systems.",
+    "created_at": "2026-04-13T04:16:50.143059",
+    "embedding_id": "knowledge_richard-perkins_01_core-themes",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_richard-perkins_01_core-themes",
+    "sources": [
+      {
+        "segment": "Core Themes",
+        "source_author": "Richard Perkins",
+        "source_kind": "seed",
+        "source_title": "Richard Perkins",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/richard_perkins.md"
+      }
+    ],
+    "tags": []
+  },
+  "knowledge_richard-perkins_02_actionable-lessons": {
+    "category": "grazing-management",
+    "content": "- Use the scale of permanence as a planning lens: climate, landform, water, trees, access, infrastructure, animals, soils. - Lightweight, modular systems matter because operational flexibility matters. - The back-end decision process is as important as the visible farm layout.",
+    "created_at": "2026-04-13T04:16:50.143067",
+    "embedding_id": "knowledge_richard-perkins_02_actionable-lessons",
+    "entry_type": "principle",
+    "farm_id": null,
+    "id": "knowledge_richard-perkins_02_actionable-lessons",
+    "sources": [
+      {
+        "segment": "Actionable Lessons",
+        "source_author": "Richard Perkins",
+        "source_kind": "seed",
+        "source_title": "Richard Perkins",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/richard_perkins.md"
+      }
+    ],
+    "tags": [
+      "animal-signals"
+    ]
+  },
+  "knowledge_richard-perkins_03_design-implication": {
+    "category": "grazing-management",
+    "content": "The agent should not only choose where animals move. It should preserve enough context that later recommendations remain coherent with the shape of the operation.",
+    "created_at": "2026-04-13T04:16:50.143073",
+    "embedding_id": "knowledge_richard-perkins_03_design-implication",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_richard-perkins_03_design-implication",
+    "sources": [
+      {
+        "segment": "Design Implication",
+        "source_author": "Richard Perkins",
+        "source_kind": "seed",
+        "source_title": "Richard Perkins",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/richard_perkins.md"
+      }
+    ],
+    "tags": [
+      "movement",
+      "animal-signals"
+    ]
+  },
+  "knowledge_universal_01_overview": {
+    "category": "grazing-management",
+    "content": "These cross-cutting principles should anchor the initial behavior of the agent.",
+    "created_at": "2026-04-13T04:16:50.143186",
+    "embedding_id": "knowledge_universal_01_overview",
+    "entry_type": "signal",
+    "farm_id": null,
+    "id": "knowledge_universal_01_overview",
+    "sources": [
+      {
+        "segment": "Overview",
+        "source_author": "Universal",
+        "source_kind": "seed",
+        "source_title": "Universal",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/universal.md"
+      }
+    ],
+    "tags": [
+      "animal-signals"
+    ]
+  },
+  "knowledge_universal_02_daily-movement-bias": {
+    "category": "grazing-management",
+    "content": "Move animals daily when the operation can support it. Frequent moves preserve selectivity, reduce reglazing pressure on fresh regrowth, and keep recovery cleaner.",
+    "created_at": "2026-04-13T04:16:50.143191",
+    "embedding_id": "knowledge_universal_02_daily-movement-bias",
+    "entry_type": "principle",
+    "farm_id": null,
+    "id": "knowledge_universal_02_daily-movement-bias",
+    "sources": [
+      {
+        "segment": "Daily Movement Bias",
+        "source_author": "Universal",
+        "source_kind": "seed",
+        "source_title": "Universal",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/universal.md"
+      }
+    ],
+    "tags": [
+      "recovery",
+      "movement",
+      "animal-signals"
+    ]
+  },
+  "knowledge_universal_03_top-third-rule": {
+    "category": "grazing-management",
+    "content": "Graze the most energy-dense portion of the plant and avoid forcing animals to mine the lower residual unless there is an explicit reason to do so.",
+    "created_at": "2026-04-13T04:16:50.143195",
+    "embedding_id": "knowledge_universal_03_top-third-rule",
+    "entry_type": "mistake",
+    "farm_id": null,
+    "id": "knowledge_universal_03_top-third-rule",
+    "sources": [
+      {
+        "segment": "Top-Third Rule",
+        "source_author": "Universal",
+        "source_kind": "seed",
+        "source_title": "Universal",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/universal.md"
+      }
+    ],
+    "tags": [
+      "animal-signals",
+      "forage"
+    ]
+  },
+  "knowledge_universal_04_rest-matters": {
+    "category": "grazing-management",
+    "content": "Recovery windows matter as much as grazing windows. A paddock should not be revisited simply because it is next in sequence. It should be revisited when it is ready.",
+    "created_at": "2026-04-13T04:16:50.143200",
+    "embedding_id": "knowledge_universal_04_rest-matters",
+    "entry_type": "principle",
+    "farm_id": null,
+    "id": "knowledge_universal_04_rest-matters",
+    "sources": [
+      {
+        "segment": "Rest Matters",
+        "source_author": "Universal",
+        "source_kind": "seed",
+        "source_title": "Universal",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/universal.md"
+      }
+    ],
+    "tags": [
+      "recovery"
+    ]
+  },
+  "knowledge_universal_05_read-animals-and-pasture-togethe": {
+    "category": "grazing-management",
+    "content": "A movement decision should never rely on pasture metrics alone. Behavior, rumen fill, grazing interest, and the way animals meet a new paddock all matter.",
+    "created_at": "2026-04-13T04:16:50.143204",
+    "embedding_id": "knowledge_universal_05_read-animals-and-pasture-togethe",
+    "entry_type": "mistake",
+    "farm_id": null,
+    "id": "knowledge_universal_05_read-animals-and-pasture-togethe",
+    "sources": [
+      {
+        "segment": "Read Animals And Pasture Together",
+        "source_author": "Universal",
+        "source_kind": "seed",
+        "source_title": "Universal",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/universal.md"
+      }
+    ],
+    "tags": [
+      "recovery",
+      "movement",
+      "animal-signals"
+    ]
+  },
+  "knowledge_universal_06_use-the-smallest-useful-observat": {
+    "category": "grazing-management",
+    "content": "When confidence is low, ask for the one field observation that reduces uncertainty most.",
+    "created_at": "2026-04-13T04:16:50.143209",
+    "embedding_id": "knowledge_universal_06_use-the-smallest-useful-observat",
+    "entry_type": "technique",
+    "farm_id": null,
+    "id": "knowledge_universal_06_use-the-smallest-useful-observat",
+    "sources": [
+      {
+        "segment": "Use The Smallest Useful Observation Request",
+        "source_author": "Universal",
+        "source_kind": "seed",
+        "source_title": "Universal",
+        "source_url": "/Users/codymenefee/Documents/openpasture-agent/seed/principles/universal.md"
+      }
+    ],
+    "tags": []
+  }
+}

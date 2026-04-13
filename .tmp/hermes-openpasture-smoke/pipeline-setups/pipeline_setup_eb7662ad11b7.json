@@ -1,0 +1,41 @@
+{
+  "collection_goal": null,
+  "created_at": "2026-04-13T04:22:56.442882",
+  "farm_id": "farm_7e930f3c86be",
+  "id": "pipeline_setup_eb7662ad11b7",
+  "interactive_live_view_url": "https://liveview.firecrawl.dev/aHR0cHM6Ly9icm93c2VyLmZpcmVjcmF3bC5kZXYvdmlldy82ODMxMzY2ZWIzNDlhM2YyLz90b2tlbj1mNjcxMjJmNjM3ZDQwMzhiNGZmOTAyZDlkYzZiZjVlMTJmNGYyYTZiNzcwYjU4ZWM2YzIzYzEyMDAwY2UyMjdm",
+  "last_interaction": {
+    "instruction": "Inspect the current page without changing it. Return strict JSON only with this shape: {\"authenticated\": boolean, \"current_url\": string, \"page_title\": string, \"on_login_page\": boolean, \"summary\": string}. Set authenticated to true only if the current page is inside the logged-in app and no login form is blocking access.",
+    "output": "```json\n{\n  \"authenticated\": true,\n  \"current_url\": \"https://webapp.spypoint.com/shared-cameras\",\n  \"page_title\": \"Spypoint\",\n  \"on_login_page\": false,\n  \"summary\": \"The user is on the 'Shared With Me' page, viewing a list of shared cameras. The page indicates the user is logged in.\"\n}\n```"
+  },
+  "last_page": {
+    "markdown": "[Go to spypoint.com](https://www.spypoint.com/en)\n\n# Sign in\n\nDon't have an account?[Create an account](https://webapp.spypoint.com/register)\n\nEmail address\n\nEmail address\n\nPassword\n\nPassword\n\nLogin\n\n[Forgot password?](https://webapp.spypoint.com/reset-password)\n\nreCAPTCHA\n\nRecaptcha requires verification.\n\nprotected by **reCAPTCHA**",
+    "metadata": {
+      "concurrencyLimited": false,
+      "contentType": "text/html",
+      "creditsUsed": 1,
+      "description": "Login to manage your account and view your photos",
+      "emotion-insertion-point": "",
+      "favicon": "https://webapp.spypoint.com/favicon.ico",
+      "language": "en",
+      "proxyUsed": "basic",
+      "scrapeId": "019d8513-cebb-74fd-b6f1-10888979ccd4",
+      "sourceURL": "https://webapp.spypoint.com/",
+      "statusCode": 200,
+      "theme-color": "#000000",
+      "timezone": "America/New_York",
+      "title": "Login - Spypoint",
+      "url": "https://webapp.spypoint.com/login",
+      "viewport": "minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
+    }
+  },
+  "last_target_url": "https://webapp.spypoint.com/login",
+  "live_view_url": "https://liveview.firecrawl.dev/d3NzOi8vYnJvd3Nlci5maXJlY3Jhd2wuZGV2L3NjcmVlbmNhc3QvNjgzMTM2NmViMzQ5YTNmMj90b2tlbj0zZGVlMmQ4NjBlNzVmMmJjNTVjNzUxNjY5YjlkNGJiN2ZmMTQyZDU5OTAxY2JlMjUzYzY1ZWMwYzk3ZmZhMTA5",
+  "login_url": "https://webapp.spypoint.com/",
+  "profile_id": "spypoint-farm_7e930f3c86be",
+  "scrape_id": "019d8513-cebb-74fd-b6f1-10888979ccd4",
+  "status": "awaiting_login",
+  "updated_at": "2026-04-13T04:25:52.237918",
+  "vendor": "spypoint",
+  "vendor_slug": "spypoint"
+}
