@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from . import runtime
 from .tools._common import hermes_tool
-from .tools import brief, farm, knowledge, observe, onboarding, plan
+from .tools import brief, farm, knowledge, observe, onboarding, pipeline, plan
 
 TOOLSET = "openpasture"
 
@@ -16,6 +16,30 @@ TOOLSET = "openpasture"
 def register(ctx) -> None:
     """Register openPasture tools and lifecycle hooks with Hermes."""
     runtime.initialize(delivery_handler=ctx.inject_message)
+    ctx.register_tool(
+        "save_data_pipeline",
+        TOOLSET,
+        pipeline.SAVE_DATA_PIPELINE_SCHEMA,
+        hermes_tool(pipeline.handle_save_data_pipeline),
+        description="Persist a learned data pipeline and write the reusable vendor skill after a Firecrawl-guided setup conversation.",
+        emoji="🔌",
+    )
+    ctx.register_tool(
+        "run_data_pipeline",
+        TOOLSET,
+        pipeline.RUN_DATA_PIPELINE_SCHEMA,
+        hermes_tool(pipeline.handle_run_data_pipeline),
+        description="Run one configured data pipeline immediately and return the collected observations.",
+        emoji="📡",
+    )
+    ctx.register_tool(
+        "list_data_pipelines",
+        TOOLSET,
+        pipeline.LIST_DATA_PIPELINES_SCHEMA,
+        hermes_tool(pipeline.handle_list_data_pipelines),
+        description="List configured data pipelines for the active farm.",
+        emoji="🗂️",
+    )
     ctx.register_tool(
         "setup_initial_farm",
         TOOLSET,

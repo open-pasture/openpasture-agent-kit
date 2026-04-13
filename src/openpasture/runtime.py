@@ -73,6 +73,17 @@ def get_data_dir() -> Path:
     return data_dir
 
 
+def get_skills_dir() -> Path:
+    skills_dir = Path(
+        os.environ.get(
+            "OPENPASTURE_SKILLS_DIR",
+            Path(__file__).resolve().parents[2] / "skills",
+        )
+    ).expanduser()
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    return skills_dir
+
+
 def get_ingest_queue_path() -> Path:
     return get_data_dir() / "ingest-queue.json"
 
@@ -371,6 +382,7 @@ def _build_workflow_context() -> list[str]:
         "Workflow mode: daily-operations",
         "Focus on observations, morning briefs, movement decisions, and occasional maintenance for the active farm.",
         "Treat register_farm and setup_initial_farm as rare setup/admin tools, not part of the normal daily loop.",
+        "When a farmer wants to connect a web-based data source, use the data-pipeline-setup skill and drive Firecrawl CLI directly, then persist the result with save_data_pipeline.",
     ]
 
 
@@ -396,6 +408,7 @@ def _build_pre_llm_guardrails() -> list[str]:
 
     return [
         "For daily operations, prefer the active farm context and avoid redundant lookup calls when one farm is already active.",
+        "When the user wants to connect or test a web-based farm service, use the data-pipeline-setup skill first, operate Firecrawl from the CLI in the same live session, and call save_data_pipeline only after you know what to collect.",
     ]
 
 
@@ -404,6 +417,13 @@ def _format_known_paddocks(paddocks: list[Any], *, limit: int = 5) -> str:
     if len(paddocks) > limit:
         preview = f"{preview}, +{len(paddocks) - limit} more"
     return preview
+
+
+def _list_pipelines_safe(farm_id: str) -> list[Any]:
+    try:
+        return list(get_store().list_pipelines(farm_id))
+    except (AttributeError, NotImplementedError):
+        return []
 
 
 def build_session_context(*, include_workflow_guidance: bool = True) -> str:
@@ -424,6 +444,7 @@ def build_session_context(*, include_workflow_guidance: bool = True) -> str:
     farm_id = farm.id
     paddocks = store.list_paddocks(farm_id)
     herds = store.get_herds(farm_id)
+    pipelines = _list_pipelines_safe(farm_id)
     latest_plan = store.get_latest_plan(farm_id)
     recent_obs = store.get_recent_observations(farm_id, days=3)
 
@@ -434,6 +455,7 @@ def build_session_context(*, include_workflow_guidance: bool = True) -> str:
         f"Timezone: {farm.timezone}",
         f"Paddocks: {len(paddocks)}",
         f"Herds: {len(herds)}",
+        f"Data pipelines: {len(pipelines)}",
         ]
     )
     if herds:

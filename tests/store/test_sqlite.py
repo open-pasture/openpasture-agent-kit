@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from openpasture.domain import Farm, GeoPoint, GeoPolygon, Herd, MovementDecision, Observation, Paddock
+from openpasture.domain import (
+    DataPipeline,
+    Farm,
+    FarmerAction,
+    GeoPoint,
+    GeoPolygon,
+    Herd,
+    MovementDecision,
+    Observation,
+    Paddock,
+)
 from openpasture.store.sqlite import SQLiteStore
 
 
@@ -103,3 +113,62 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
     assert updated_plan.status == "approved"
     assert updated_plan.farmer_feedback == "Move them this afternoon."
     assert updated_herd.current_paddock_id == "paddock_2"
+
+
+def test_sqlite_store_round_trips_pipelines_and_farmer_actions(tmp_path):
+    store = build_store(tmp_path)
+    farm = Farm(
+        id="farm_1",
+        name="Willow Creek",
+        timezone="America/Chicago",
+        location=GeoPoint(longitude=-95.2, latitude=36.2),
+    )
+    pipeline = DataPipeline(
+        id="pipeline_1",
+        farm_id=farm.id,
+        name="nofence",
+        profile_id="nofence-farm_1",
+        login_url="https://app.nofence.no/login",
+        target_urls=["https://app.nofence.no/dashboard"],
+        extraction_prompts=["Extract today's GPS positions as observations."],
+        observation_source="nofence",
+        observation_tags=["gps", "integration"],
+        vendor_skill_version="sha256:abc123",
+    )
+    action = FarmerAction(
+        id="action_1",
+        farm_id=farm.id,
+        action_type="reauth",
+        summary="Reconnect NoFence.",
+        context={"pipeline_id": pipeline.id},
+    )
+
+    store.create_farm(farm)
+    assert store.create_pipeline(pipeline) == pipeline.id
+    assert store.create_farmer_action(action) == action.id
+
+    loaded_pipeline = store.get_pipeline(pipeline.id)
+    assert loaded_pipeline is not None
+    assert loaded_pipeline.profile_id == pipeline.profile_id
+    assert loaded_pipeline.observation_tags == ["gps", "integration"]
+    assert store.list_pipelines(farm.id)[0].id == pipeline.id
+
+    pending_actions = store.list_pending_actions(farm.id)
+    assert len(pending_actions) == 1
+    assert pending_actions[0].context == {"pipeline_id": pipeline.id}
+
+    collected_at = datetime.utcnow()
+    store.update_pipeline(
+        pipeline.id,
+        enabled=False,
+        last_collected_at=collected_at,
+        last_error="Session expired",
+    )
+    store.resolve_farmer_action(action.id, "Farmer reconnected the account.")
+
+    updated_pipeline = store.get_pipeline(pipeline.id)
+    assert updated_pipeline is not None
+    assert updated_pipeline.enabled is False
+    assert updated_pipeline.last_error == "Session expired"
+    assert updated_pipeline.last_collected_at == collected_at
+    assert store.list_pending_actions(farm.id) == []

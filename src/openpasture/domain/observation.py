@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
 
-ObservationSource = Literal["satellite", "photo", "note", "weather", "trailcam", "manual", "field"]
+# Observation sources stay open so farm-specific pipelines can introduce
+# vendor names like "nofence" without changing the domain model.
+ObservationSource = str
 
 _OBSERVATION_SOURCE_ALIASES = {
     "field": "field",

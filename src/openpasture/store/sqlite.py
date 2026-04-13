@@ -11,7 +11,9 @@ from typing import Any, Iterator
 
 from openpasture.domain import (
     DailyBrief,
+    DataPipeline,
     Farm,
+    FarmerAction,
     GeoPoint,
     GeoPolygon,
     Herd,
@@ -176,6 +178,43 @@ class SQLiteStore:
             )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS data_pipelines (
+                    id TEXT PRIMARY KEY,
+                    farm_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    profile_id TEXT NOT NULL,
+                    login_url TEXT NOT NULL,
+                    target_urls TEXT NOT NULL,
+                    extraction_prompts TEXT NOT NULL,
+                    observation_source TEXT NOT NULL,
+                    observation_tags TEXT NOT NULL,
+                    schedule TEXT NOT NULL,
+                    vendor_skill_version TEXT,
+                    enabled INTEGER NOT NULL,
+                    last_collected_at TEXT,
+                    last_error TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(farm_id) REFERENCES farms(id)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS farmer_actions (
+                    id TEXT PRIMARY KEY,
+                    farm_id TEXT NOT NULL,
+                    action_type TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    context TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    resolved_at TEXT,
+                    resolution TEXT,
+                    FOREIGN KEY(farm_id) REFERENCES farms(id)
+                )
+                """
+            )
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS movement_decisions (
                     id TEXT PRIMARY KEY,
                     farm_id TEXT NOT NULL,
@@ -261,6 +300,39 @@ class SQLiteStore:
             metrics=_json_loads(row["metrics"], {}),
             media_url=row["media_url"],
             tags=_json_loads(row["tags"], []),
+        )
+
+    def _pipeline_from_row(self, row: sqlite3.Row) -> DataPipeline:
+        return DataPipeline(
+            id=row["id"],
+            farm_id=row["farm_id"],
+            name=row["name"],
+            profile_id=row["profile_id"],
+            login_url=row["login_url"],
+            target_urls=_json_loads(row["target_urls"], []),
+            extraction_prompts=_json_loads(row["extraction_prompts"], []),
+            observation_source=row["observation_source"],
+            observation_tags=_json_loads(row["observation_tags"], []),
+            schedule=row["schedule"],
+            vendor_skill_version=row["vendor_skill_version"],
+            enabled=bool(row["enabled"]),
+            last_collected_at=(
+                _datetime_from_text(row["last_collected_at"]) if row["last_collected_at"] else None
+            ),
+            last_error=row["last_error"],
+            created_at=_datetime_from_text(row["created_at"]),
+        )
+
+    def _farmer_action_from_row(self, row: sqlite3.Row) -> FarmerAction:
+        return FarmerAction(
+            id=row["id"],
+            farm_id=row["farm_id"],
+            action_type=row["action_type"],
+            summary=row["summary"],
+            context=_json_loads(row["context"], {}),
+            created_at=_datetime_from_text(row["created_at"]),
+            resolved_at=_datetime_from_text(row["resolved_at"]) if row["resolved_at"] else None,
+            resolution=row["resolution"],
         )
 
     def _plan_from_row(self, row: sqlite3.Row) -> MovementDecision:
@@ -498,6 +570,147 @@ class SQLiteStore:
                 (paddock_id, cutoff),
             ).fetchall()
         return [self._observation_from_row(row) for row in rows]
+
+    def create_pipeline(self, pipeline: DataPipeline) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO data_pipelines (
+                    id, farm_id, name, profile_id, login_url, target_urls, extraction_prompts,
+                    observation_source, observation_tags, schedule, vendor_skill_version,
+                    enabled, last_collected_at, last_error, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    pipeline.id,
+                    pipeline.farm_id,
+                    pipeline.name,
+                    pipeline.profile_id,
+                    pipeline.login_url,
+                    _json_dumps(pipeline.target_urls),
+                    _json_dumps(pipeline.extraction_prompts),
+                    pipeline.observation_source,
+                    _json_dumps(pipeline.observation_tags),
+                    pipeline.schedule,
+                    pipeline.vendor_skill_version,
+                    int(pipeline.enabled),
+                    (
+                        _datetime_to_text(pipeline.last_collected_at)
+                        if pipeline.last_collected_at
+                        else None
+                    ),
+                    pipeline.last_error,
+                    _datetime_to_text(pipeline.created_at),
+                ),
+            )
+        return pipeline.id
+
+    def get_pipeline(self, pipeline_id: str) -> DataPipeline | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM data_pipelines WHERE id = ?",
+                (pipeline_id,),
+            ).fetchone()
+        return None if row is None else self._pipeline_from_row(row)
+
+    def list_pipelines(self, farm_id: str) -> list[DataPipeline]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM data_pipelines
+                WHERE farm_id = ?
+                ORDER BY name ASC, created_at ASC
+                """,
+                (farm_id,),
+            ).fetchall()
+        return [self._pipeline_from_row(row) for row in rows]
+
+    def update_pipeline(self, pipeline_id: str, **updates: object) -> None:
+        if not updates:
+            return
+
+        column_map = {
+            "name": "name",
+            "profile_id": "profile_id",
+            "login_url": "login_url",
+            "target_urls": "target_urls",
+            "extraction_prompts": "extraction_prompts",
+            "observation_source": "observation_source",
+            "observation_tags": "observation_tags",
+            "schedule": "schedule",
+            "vendor_skill_version": "vendor_skill_version",
+            "enabled": "enabled",
+            "last_collected_at": "last_collected_at",
+            "last_error": "last_error",
+        }
+
+        assignments: list[str] = []
+        values: list[object] = []
+        for key, value in updates.items():
+            if key not in column_map:
+                continue
+            if key in {"target_urls", "extraction_prompts", "observation_tags"}:
+                value = _json_dumps(value if isinstance(value, list) else [])
+            elif key == "enabled":
+                value = int(bool(value))
+            elif key == "last_collected_at":
+                value = _datetime_to_text(value) if isinstance(value, datetime) else None
+            assignments.append(f"{column_map[key]} = ?")
+            values.append(value)
+
+        if not assignments:
+            return
+
+        values.append(pipeline_id)
+        with self._connect() as connection:
+            connection.execute(
+                f"UPDATE data_pipelines SET {', '.join(assignments)} WHERE id = ?",
+                tuple(values),
+            )
+
+    def create_farmer_action(self, action: FarmerAction) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO farmer_actions (
+                    id, farm_id, action_type, summary, context, created_at, resolved_at, resolution
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    action.id,
+                    action.farm_id,
+                    action.action_type,
+                    action.summary,
+                    _json_dumps(action.context),
+                    _datetime_to_text(action.created_at),
+                    _datetime_to_text(action.resolved_at) if action.resolved_at else None,
+                    action.resolution,
+                ),
+            )
+        return action.id
+
+    def list_pending_actions(self, farm_id: str) -> list[FarmerAction]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM farmer_actions
+                WHERE farm_id = ? AND resolved_at IS NULL
+                ORDER BY created_at ASC
+                """,
+                (farm_id,),
+            ).fetchall()
+        return [self._farmer_action_from_row(row) for row in rows]
+
+    def resolve_farmer_action(self, action_id: str, resolution: str) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE farmer_actions
+                SET resolved_at = ?, resolution = ?
+                WHERE id = ?
+                """,
+                (_datetime_to_text(datetime.utcnow()), resolution, action_id),
+            )
 
     def create_plan(self, plan: MovementDecision) -> str:
         with self._connect() as connection:

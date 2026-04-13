@@ -49,6 +49,9 @@ def test_registered_handlers_accept_hermes_kwargs(monkeypatch):
     ctx = _FakeContext()
     register(ctx)
     assert "setup_initial_farm" in ctx.tools
+    assert "save_data_pipeline" in ctx.tools
+    assert "run_data_pipeline" in ctx.tools
+    assert "list_data_pipelines" in ctx.tools
 
     farm_result = json.loads(
         ctx.tools["setup_initial_farm"](
