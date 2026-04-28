@@ -1,0 +1,80 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "willow",
+  "name": "OpenPasture",
+  "description": "OpenPasture docs for the public agent kit, hosted cloud boundary, and self-hosted farm workflows.",
+  "colors": {
+    "primary": "#4a6a2e",
+    "light": "#5a7a38",
+    "dark": "#1a1e18"
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Marketing site",
+        "href": "https://openpasture.com"
+      }
+    ]
+  },
+  "footer": {
+    "links": [
+      {
+        "header": "Source",
+        "items": [
+          {
+            "label": "Agent kit",
+            "href": "https://github.com/open-pasture/openpasture-agent-kit"
+          }
+        ]
+      }
+    ]
+  },
+  "search": {
+    "prompt": "Search OpenPasture docs..."
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start Here",
+        "pages": [
+          "index",
+          "quickstart",
+          "core-concepts"
+        ]
+      },
+      {
+        "group": "Run The Kit",
+        "pages": [
+          "cli",
+          "mcp",
+          "hermes-adapter",
+          "skills",
+          "knowledge"
+        ]
+      },
+      {
+        "group": "Deploy And Operate",
+        "pages": [
+          "self-hosting",
+          "hosted-cloud",
+          "environment-variables",
+          "troubleshooting"
+        ]
+      },
+      {
+        "group": "Build With OpenPasture",
+        "pages": [
+          "architecture",
+          "developer-guidance",
+          "changelog"
+        ]
+      }
+    ]
+  }
+}

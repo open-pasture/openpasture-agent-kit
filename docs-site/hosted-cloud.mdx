@@ -1,0 +1,55 @@
+---
+title: "Hosted Cloud"
+description: "How the hosted OpenPasture product should wrap the public agent kit."
+---
+
+# Hosted Cloud
+
+The hosted OpenPasture product is a managed wrapper around the public agent kit.
+It is the revenue product, but it should not replace the self-hostable farm
+behavior.
+
+## Cloud Responsibilities
+
+The cloud repo owns:
+
+- account and tenant management,
+- authentication and authorization,
+- billing and subscriptions,
+- hosted provisioning,
+- hosted storage, sync, backups, and recovery,
+- proprietary dashboard and admin UI,
+- support workflows and hosted operations.
+
+## Agent Kit Responsibilities
+
+The public agent kit keeps owning:
+
+- farm onboarding primitives,
+- paddock and herd state,
+- observation recording,
+- movement recommendation logic,
+- morning brief generation,
+- knowledge retrieval and ingestion,
+- connector surfaces and local validation.
+
+## Current Hosted Direction
+
+The current plan starts with a simple hosted runtime:
+
+- one farmer or tenant per managed runtime,
+- SQLite and Chroma on persistent storage for the early pilot,
+- Convex used by the hosted web app for product state,
+- a later move toward Convex-backed farm storage for larger hosted rollouts.
+
+For 50-farmer hosted work, the roadmap points toward a real Convex
+`FarmStore` implementation while keeping SQLite as the default OSS backend.
+
+## Guardrail
+
+If a feature is required for a self-hosted farmer to run the agent, build it in
+the agent kit. If it is about hosting, monetization, managed UX, internal ops,
+or support, build it in the cloud repo.
+
+Source docs: `docs/cloud-boundary.md`, `docs/cloud-handoff.md`, and
+`docs/hosted-convex-roadmap.md`.

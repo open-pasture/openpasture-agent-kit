@@ -1,0 +1,51 @@
+---
+title: "Hermes Adapter"
+description: "Use the Hermes adapter as one supported runtime connector."
+---
+
+# Hermes Adapter
+
+Hermes is one supported connector. It is not the product boundary.
+
+The adapter registers the shared OpenPasture tool catalog with Hermes and wires
+runtime hooks for session startup and pre-LLM context. Farm behavior stays in
+the kit so other connectors can use it too.
+
+## Install
+
+```bash
+pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
+pip install -e .
+```
+
+## Run
+
+Set up your Hermes gateway:
+
+```bash
+hermes gateway setup
+```
+
+Start a chat session:
+
+```bash
+hermes chat
+```
+
+## Validated Target
+
+The current validated Hermes target in the agent kit is:
+
+- version: `0.8.0`
+- commit: `1cec910b6a064d4e4821930be5cfaaf6145a2afd`
+
+Check the pinned target:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate show-target
+```
+
+If you move Hermes forward, pin the new commit and rerun the alpha validation
+flow before calling it supported.
+
+Source docs: `docs/alpha-validation.md` and `docs/cloud-handoff.md`.

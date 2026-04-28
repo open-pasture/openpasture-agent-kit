@@ -1,0 +1,48 @@
+---
+title: "OpenPasture Docs"
+description: "A practical guide to the OpenPasture agent kit, hosted cloud boundary, and self-hosted farm workflows."
+---
+
+# OpenPasture Docs
+
+OpenPasture helps pasture-based livestock farmers use capable agents without
+handing the farm over to them.
+
+The public agent kit gives an agent the parts it needs to be useful on a farm:
+tools, skills, farm state, curated grazing knowledge, and connector surfaces for
+CLI, MCP, and Hermes. The farmer still makes the call. The agent helps gather
+context, explain tradeoffs, and ask for the next observation when the answer is
+not clear.
+
+## The Three Repos
+
+OpenPasture has three active repos with different jobs.
+
+| Repo | Role |
+| --- | --- |
+| `openpasture-agent-kit` | Public open-core agent kit and canonical source for voice, mission, farm behavior, docs, skills, and connectors. |
+| `openpasture-cloud` | Hosted revenue product for accounts, provisioning, auth, dashboard, sync, billing, and support. |
+| `openpasture-web` | Closed marketing site for public positioning, pricing, and lead capture. |
+
+The split matters. If behavior helps any agent operate a pasture-based livestock
+farm, it belongs in the agent kit first. If it is about hosting, account
+management, billing, or proprietary UI, it belongs in the cloud product. If it is
+public positioning, it belongs on the marketing site.
+
+## What To Read First
+
+- Start with [Quickstart](/quickstart) if you want to run the kit.
+- Read [Core Concepts](/core-concepts) if you want the mental model.
+- Read [Self-Hosting](/self-hosting) if you want a local farm setup.
+- Read [Hosted Cloud](/hosted-cloud) if you are working on the managed product.
+- Read [Developer Guidance](/developer-guidance) before changing behavior or copy.
+
+## Voice
+
+OpenPasture should sound plain, practical, and farmer-to-farmer. It should say
+what it knows, what it assumes, and what it still needs. It should never pretend
+to control land, livestock, hardware, or management decisions that remain with
+the farmer.
+
+Source docs: `SOUL.md`, `docs/voice-and-boundaries.md`, `docs/vision.md`, and
+`docs/cloud-boundary.md`.

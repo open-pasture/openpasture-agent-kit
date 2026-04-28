@@ -1,0 +1,43 @@
+---
+title: "Changelog"
+description: "Notable documentation and alpha validation history for OpenPasture."
+---
+
+# Changelog
+
+This page is intentionally modest until OpenPasture has formal versioned docs
+releases.
+
+## Current Docs Baseline
+
+- Added a Mintlify docs site under `docs-site/`.
+- Established the agent kit as the canonical public source for voice, mission,
+  tone, product boundaries, and agent instructions.
+- Split docs clearly between the public agent kit, hosted cloud product, and
+  marketing site.
+
+## Current Alpha Baseline
+
+The validated core loop is:
+
+1. onboard the farm,
+2. store paddocks and herd state,
+3. record a field observation,
+4. generate a morning brief,
+5. return a `MOVE`, `STAY`, or `NEEDS_INFO` recommendation.
+
+Current maintainer checks:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate automated
+uv run --python 3.11 openpasture-alpha-validate docker
+```
+
+## Future Release Notes
+
+Knowledge releases should eventually carry their own version, manifest, entry
+count, source count, and changelog. Farm data and shared ancestral knowledge
+should stay separate.
+
+Source docs: `docs/cloud-handoff.md`, `docs/alpha-validation.md`, and
+`docs/knowledge-productization.md`.

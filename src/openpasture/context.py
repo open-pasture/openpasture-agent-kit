@@ -8,10 +8,12 @@ optional scheduling without knowing which agent runtime is driving it.
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
-from typing import Callable, MutableMapping, TYPE_CHECKING
+from typing import Callable, Iterator, MutableMapping, TYPE_CHECKING
 
 from openpasture.knowledge.embedder import KnowledgeEmbedder
 from openpasture.knowledge.retriever import KnowledgeRetriever
@@ -279,10 +281,27 @@ class OpenPastureContext:
 
 
 _default_context: OpenPastureContext | None = None
+_bound_context: ContextVar[OpenPastureContext | None] = ContextVar(
+    "openpasture_bound_context",
+    default=None,
+)
+
+
+@contextmanager
+def bind_context(context: OpenPastureContext) -> Iterator[OpenPastureContext]:
+    """Bind an OpenPasture context to the current request/task."""
+
+    token = _bound_context.set(context)
+    try:
+        yield context
+    finally:
+        _bound_context.reset(token)
 
 
 def get_default_context() -> OpenPastureContext:
     global _default_context
+    if context := _bound_context.get():
+        return context
     if _default_context is None:
         _default_context = OpenPastureContext()
     return _default_context
@@ -297,6 +316,7 @@ def set_default_context(context: OpenPastureContext | None) -> None:
 
 def reset_default_context() -> None:
     set_default_context(None)
+    _bound_context.set(None)
 
 
 def initialize(

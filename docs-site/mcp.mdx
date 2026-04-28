@@ -1,0 +1,50 @@
+---
+title: "MCP"
+description: "Expose OpenPasture tools and skills to MCP-capable agents."
+---
+
+# MCP
+
+The MCP connector lets MCP-capable clients reach the same OpenPasture tools and
+skills as the CLI and Hermes adapter.
+
+Install the optional MCP dependencies:
+
+```bash
+pip install -e ".[mcp]"
+```
+
+Run the connector over stdio:
+
+```bash
+python -m openpasture.connectors.mcp
+```
+
+Run the connector over streamable HTTP:
+
+```bash
+export OPENPASTURE_MCP_TRANSPORT=http
+export PORT=8000
+python -m openpasture.connectors.mcp
+```
+
+## Exposed Capabilities
+
+The connector exposes tools for:
+
+- listing OpenPasture tool specs,
+- running one OpenPasture tool with JSON arguments,
+- listing portable skills,
+- reading one portable skill.
+
+It also exposes resources for tool metadata and skill documents.
+
+## Hosted MCP
+
+The repo also contains hosted MCP work in progress. Hosted flows should preserve
+the same kit boundary: resolve tenant/auth concerns outside the farm tool
+handlers, then call the shared toolkit.
+
+Source files: `src/openpasture/connectors/mcp.py`,
+`src/openpasture/connectors/mcp_hosted.py`, and
+`src/openpasture/connectors/mcp_auth.py`.

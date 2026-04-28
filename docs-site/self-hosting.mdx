@@ -1,0 +1,54 @@
+---
+title: "Self-Hosting"
+description: "Run OpenPasture locally without the hosted cloud product."
+---
+
+# Self-Hosting
+
+OpenPasture is designed to be usable without the hosted platform.
+
+The self-hosted path uses the public agent kit, local storage, and whichever
+agent surface you choose. The current alpha is strongest around SQLite, local
+scheduling, and the Hermes messaging path.
+
+## What You Need
+
+- Python 3.11+
+- An agent runtime or MCP-capable client
+- Optional Hermes setup for the current validated adapter
+- An LLM provider key
+- Optional `FIRECRAWL_API_KEY` for external knowledge ingestion
+
+## Recommended Environment
+
+```bash
+export OPENPASTURE_STORE=sqlite
+export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
+export OPENPASTURE_DEFAULT_TIMEZONE="America/Chicago"
+export OPENPASTURE_BRIEF_TIME="06:00"
+```
+
+## First Session Prompt
+
+```text
+I am setting up a new pasture-based livestock farm. Help me create the farm,
+paddocks, and first herd.
+```
+
+After onboarding:
+
+```text
+Record this observation for the current paddock: forage is getting short and
+muddy near the water point. Then give me today's morning brief.
+```
+
+## Current Alpha Boundaries
+
+- SQLite is the default self-hosted store.
+- Satellite ingestion and photo ingestion are not complete.
+- Convex is reserved for hosted work and is not the default local path.
+- Hosted transport, delivery orchestration, account management, and billing
+  belong in the cloud repo.
+
+Source docs: `docs/self-hosting.md`, `docs/cloud-boundary.md`, and
+`docs/alpha-validation.md`.

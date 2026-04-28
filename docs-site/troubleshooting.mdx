@@ -1,0 +1,76 @@
+---
+title: "Troubleshooting"
+description: "Common OpenPasture setup and runtime issues."
+---
+
+# Troubleshooting
+
+Start with the simplest check: can the kit initialize, list tools, and use the
+expected data directory?
+
+```bash
+openpasture tools list
+openpasture skills list
+```
+
+## Knowledge Ingestion Says Firecrawl Is Missing
+
+Set `FIRECRAWL_API_KEY` before running external source ingestion. Onboarding,
+farm state, and morning briefs can still work without it.
+
+## MCP Dependency Is Missing
+
+Install the optional MCP dependencies:
+
+```bash
+pip install -e ".[mcp]"
+```
+
+Then rerun:
+
+```bash
+python -m openpasture.connectors.mcp
+```
+
+## Convex Store Fails To Start
+
+`OPENPASTURE_STORE=convex` requires:
+
+```bash
+export OPENPASTURE_CONVEX_URL="..."
+export OPENPASTURE_CONVEX_KEY="..."
+```
+
+Use `OPENPASTURE_STORE=sqlite` for local self-hosted work unless you are
+specifically validating hosted storage.
+
+## Briefs Use The Wrong Local State
+
+Check `OPENPASTURE_DATA_DIR`. Local SQLite state lives under that directory. If
+you are testing multiple farms or profiles on one machine, use separate absolute
+data directories.
+
+## Hermes Behavior Changed
+
+Check the validated Hermes target:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate show-target
+```
+
+Run the alpha suite after connector or Hermes changes:
+
+```bash
+uv run --python 3.11 openpasture-alpha-validate automated
+```
+
+## Docs Preview Fails
+
+From `docs-site/`, run:
+
+```bash
+npx mint@latest dev
+```
+
+If the CLI asks for a login to deploy, stop and use the Mintlify account flow in
+the browser. Do not store credentials in the repo.

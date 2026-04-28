@@ -1,0 +1,56 @@
+---
+title: "Core Concepts"
+description: "The basic language OpenPasture uses for farms, observations, decisions, and knowledge."
+---
+
+# Core Concepts
+
+OpenPasture is built around a simple daily loop:
+
+1. What is true about the farm right now?
+2. Should the herd `MOVE`, `STAY`, or does the agent `NEEDS_INFO`?
+3. Why does that recommendation make sense?
+4. What single observation would reduce uncertainty most?
+
+The farmer remains the operator. The agent extends attention, memory, and
+execution.
+
+## Farm
+
+The top-level management unit. A farm contains paddocks, herds, infrastructure,
+observations, timezone, and location context.
+
+## Paddock
+
+A bounded grazing unit. A paddock can store geometry, area, management status,
+and notes that affect movement planning.
+
+## Herd
+
+A livestock group managed together. A herd tracks species, count, optional
+animal-unit assumptions, and current paddock assignment.
+
+## Observation
+
+A time-bound signal about the farm. A farmer note, weather report, photo
+analysis, and satellite-derived signal should all be expressible as
+observations.
+
+## Movement Decision
+
+The recommendation for a decision window. A decision records the recommended
+action, reasoning, confidence, timing, source paddock, destination paddock when
+applicable, and farmer response status.
+
+## Daily Brief
+
+The farmer-facing summary. A good brief names the practical recommendation,
+explains why, and asks for the most useful missing observation when uncertainty
+matters.
+
+## Knowledge Entry
+
+A structured lesson from a trusted source. The first entry types are
+`principle`, `technique`, `signal`, and `mistake`.
+
+Source docs: `docs/vision.md` and `docs/domain.md`.

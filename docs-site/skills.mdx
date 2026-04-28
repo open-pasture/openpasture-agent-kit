@@ -1,0 +1,43 @@
+---
+title: "Skills"
+description: "Portable operational runbooks for OpenPasture agents."
+---
+
+# Skills
+
+Skills are portable operating procedures. They teach an agent how to work through
+farm jobs without tying that knowledge to one runtime.
+
+The kit discovers skills from `skills/*/SKILL.md`. Connectors can list and read
+those files so an agent can load the runbook it needs.
+
+## Current Skills
+
+- `farm-onboarding`: create the first farm, paddocks, and herd.
+- `morning-brief`: assemble a daily field-ready recommendation.
+- `rotation-planning`: reason through `MOVE`, `STAY`, and `NEEDS_INFO`.
+- `pasture-assessment`: read forage, residual, animal behavior, and field notes.
+- `knowledge-ingestion`: turn trusted sources into structured lessons.
+- `data-pipeline-setup`: configure reusable signal ingestion.
+- `pipeline-spypoint`: example vendor-oriented pipeline skill.
+
+## Use Skills From The CLI
+
+```bash
+openpasture skills list
+openpasture skills show morning-brief
+```
+
+## Writing A Skill
+
+A good OpenPasture skill should:
+
+- keep the farmer's decision authority visible,
+- ask for the most useful missing observation instead of guessing,
+- name the tool calls it expects the agent to use,
+- explain how to check the result,
+- stay useful across CLI, MCP, Hermes, and future connectors.
+
+Skills are curriculum. Tool handlers are execution.
+
+Source files: `skills/` and `src/openpasture/skills.py`.

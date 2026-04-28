@@ -1,0 +1,46 @@
+---
+title: "Environment Variables"
+description: "Configuration used by the OpenPasture agent kit and hosted boundary."
+---
+
+# Environment Variables
+
+Use environment variables to keep one kit usable across CLI, MCP, Hermes, tests,
+and hosted wrappers.
+
+## Core Local Settings
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENPASTURE_STORE` | Storage backend. Use `sqlite` for local and self-hosted work. `convex` is for hosted work. |
+| `OPENPASTURE_DATA_DIR` | Local data directory for farm state, knowledge state, Chroma files, queues, and batches. |
+| `OPENPASTURE_SKILLS_DIR` | Optional override for skill discovery. Defaults to the repo `skills/` directory. |
+| `OPENPASTURE_BRIEF_TIME` | Local scheduled morning brief time in `HH:MM` 24-hour format. |
+| `OPENPASTURE_LOAD_SEED` | Set `0` to skip seed loading or `1` to force seed reload. |
+| `FIRECRAWL_API_KEY` | Required for external web knowledge ingestion. Not required for onboarding or local briefs. |
+
+## Convex Hosted Settings
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENPASTURE_CONVEX_URL` | Convex deployment URL for hosted store work. |
+| `OPENPASTURE_CONVEX_KEY` | Convex deploy key used by the hosted store path. |
+
+When `OPENPASTURE_STORE=convex`, both Convex variables must be set.
+
+## MCP Settings
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENPASTURE_MCP_TRANSPORT` | Use `stdio` by default or `http` for streamable HTTP. |
+| `PORT` | HTTP port when running the MCP connector over HTTP. |
+
+## Hosted Cloud Settings
+
+The hosted cloud repo also uses product-level variables such as Railway, Clerk,
+Convex, OpenAI, and admin settings. Those belong to the cloud product, not the
+public kit docs. See the cloud repo README and infrastructure docs for the
+current list.
+
+Never commit secrets. Use local `.env` files, hosted environment-variable
+stores, or profile-specific Hermes env files.

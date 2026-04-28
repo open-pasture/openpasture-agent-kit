@@ -1,0 +1,66 @@
+---
+title: "CLI"
+description: "Use the openpasture command line interface for tools, skills, knowledge, and validation."
+---
+
+# CLI
+
+The `openpasture` CLI is a JSON-in, JSON-out surface for agents, scripts, cron,
+and maintainers. It exposes the same tool catalog used by the connectors.
+
+## Common Commands
+
+List tool specs:
+
+```bash
+openpasture tools list
+```
+
+Run one tool:
+
+```bash
+openpasture tool run generate_morning_brief --json '{}'
+```
+
+List skills:
+
+```bash
+openpasture skills list
+```
+
+Show one skill:
+
+```bash
+openpasture skills show morning-brief
+```
+
+Search stored knowledge:
+
+```bash
+openpasture knowledge search "leaving residual" --limit 5
+```
+
+Run alpha validation:
+
+```bash
+openpasture validate alpha automated
+```
+
+## Context Flags
+
+Use `--data-dir` to point a command at a specific local farm state directory:
+
+```bash
+openpasture --data-dir "$HOME/.openpasture-alpha" tools list
+```
+
+Use `--store` to select the storage backend:
+
+```bash
+openpasture --store sqlite tool run get_farm_state --json '{}'
+```
+
+`sqlite` is the default self-hosted backend. `convex` is intended for hosted
+cloud work and requires hosted configuration.
+
+Source files: `src/openpasture/cli.py`, `src/openpasture/toolkit.py`.

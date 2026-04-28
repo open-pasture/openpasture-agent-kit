@@ -7,8 +7,10 @@ installable without MCP runtime dependencies.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
+from openpasture.context import initialize
 from openpasture.skills import list_skills, read_skill
 from openpasture.toolkit import list_tool_specs, run_tool
 
@@ -37,11 +39,11 @@ def _tool_payload() -> list[dict[str, Any]]:
     ]
 
 
-def build_mcp_server(name: str = "openPasture"):
+def build_mcp_server(name: str = "openPasture", **settings: Any):
     """Build an MCP server exposing openPasture tools and skill resources."""
 
     FastMCP = _require_fastmcp()
-    server = FastMCP(name)
+    server = FastMCP(name, **settings)
 
     @server.tool()
     def list_openpasture_tools() -> str:
@@ -91,7 +93,15 @@ def build_mcp_server(name: str = "openPasture"):
 
 
 def main() -> None:
-    build_mcp_server().run()
+    initialize()
+    transport = os.environ.get("OPENPASTURE_MCP_TRANSPORT", "stdio").lower()
+    if transport == "http":
+        port = int(os.environ.get("PORT", "8000"))
+        server = build_mcp_server(host="0.0.0.0", port=port)
+        server.run(transport="streamable-http")
+        return
+    server = build_mcp_server()
+    server.run()
 
 
 if __name__ == "__main__":

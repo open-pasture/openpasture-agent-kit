@@ -1,0 +1,76 @@
+---
+title: "Developer Guidance"
+description: "Rules for agents and contributors changing OpenPasture behavior, docs, or product copy."
+---
+
+# Developer Guidance
+
+Before changing behavior, docs, or farmer-facing copy, read:
+
+1. `SOUL.md`
+2. `docs/voice-and-boundaries.md`
+3. `docs/vision.md`
+4. `docs/architecture.md`
+5. `docs/cloud-boundary.md`
+6. `AGENTS.md`
+
+## Agent Onboarding
+
+Agents should be able to start from the repository without hidden chat context.
+The shortest path is:
+
+1. Read `AGENTS.md`.
+2. Read `SOUL.md` and `docs/voice-and-boundaries.md`.
+3. Identify whether the change belongs in the agent kit, cloud repo, web repo, or
+   docs site.
+4. Update source-of-truth files in the agent kit before adapting public docs,
+   hosted copy, or marketing copy.
+
+## Build In The Right Repo
+
+- Farm behavior, tools, skills, knowledge, and connector surfaces belong in
+  `openpasture-agent-kit`.
+- Auth, accounts, billing, provisioning, hosted storage, dashboard, and support
+  workflows belong in `openpasture-cloud`.
+- Public positioning, pricing, and lead capture belong in `openpasture-web`.
+
+Do not move core grazing reasoning into the cloud UI or marketing site.
+
+## Keep The Farmer In Charge
+
+OpenPasture can recommend, explain, remember, and ask for better observations. It
+does not own the final decision. Avoid copy or behavior that implies autonomous
+control.
+
+## Prefer Portable Behavior
+
+Put farm-operating behavior in the toolkit. Keep connector code thin and
+runtime-specific. A tool should work from CLI, MCP, Hermes, tests, and future
+hosted wrappers where practical.
+
+## Treat Uncertainty As Part Of The Product
+
+When uncertainty matters, ask for the single most useful additional observation.
+Do not bury uncertainty under confident language.
+
+## Validate Focused Changes
+
+Use the smallest validation that covers the change:
+
+```bash
+uv run --python 3.11 pytest
+uv run --python 3.11 openpasture-alpha-validate automated
+```
+
+For docs site changes:
+
+```bash
+cd docs-site
+npx mint@latest broken-links
+```
+
+## Licensing Notes
+
+The public agent kit is AGPL-3.0-only. The cloud repo is all rights reserved.
+The web repo has no license file in this workspace. Do not make broader
+licensing claims unless the license files and manifests agree.

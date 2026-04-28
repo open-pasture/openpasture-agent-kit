@@ -89,6 +89,31 @@ seed/                  Foundational grazing knowledge
 SOUL.md                Agent voice and operating philosophy
 ```
 
+## Docs Site
+
+The public Mintlify docs live in `docs-site/`. They adapt the existing source
+docs into a reader-facing site while keeping this repo as the canonical source
+for voice, mission, boundaries, and agent guidance.
+
+Preview locally:
+
+```bash
+cd docs-site
+npx mint@latest dev
+```
+
+Validate the docs config and links:
+
+```bash
+cd docs-site
+npx mint@latest broken-links
+```
+
+Deploying the hosted Mintlify site requires a Mintlify account or connected Git
+provider. For a GitHub-backed deployment, install the Mintlify GitHub App on the
+docs repository from the Mintlify dashboard and set the docs subdirectory to
+`docs-site`. Do not store tokens or account credentials in this repo.
+
 ## Maintainer Validation
 
 ```bash

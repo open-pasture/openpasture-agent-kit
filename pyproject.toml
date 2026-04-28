@@ -32,6 +32,8 @@ cloud = [
 ]
 mcp = [
   "mcp>=1.0.0",
+  "starlette>=0.37.0",
+  "uvicorn>=0.29.0",
 ]
 dev = [
   "pytest>=8.2.0",
@@ -44,6 +46,8 @@ openpasture = "openpasture.plugin"
 [project.scripts]
 openpasture = "openpasture.cli:main"
 openpasture-alpha-validate = "openpasture.validation.alpha:main"
+openpasture-mcp = "openpasture.connectors.mcp:main"
+openpasture-mcp-hosted = "openpasture.connectors.mcp_hosted:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

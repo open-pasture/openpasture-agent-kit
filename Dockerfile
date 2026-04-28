@@ -6,10 +6,11 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY . /app
-RUN pip install --upgrade pip && pip install -e .
+RUN pip install --upgrade pip && pip install -e ".[mcp]"
 
 ENV PYTHONUNBUFFERED=1
 ENV OPENPASTURE_STORE=sqlite
-ENV OPENPASTURE_DATA_DIR=/data/openpasture
+ENV OPENPASTURE_HOSTED_DATA_DIR=/data/openpasture
 ENV OPENPASTURE_BRIEF_TIME=06:00
-CMD ["openpasture", "tools", "list"]
+EXPOSE 8000
+CMD ["openpasture-mcp-hosted"]

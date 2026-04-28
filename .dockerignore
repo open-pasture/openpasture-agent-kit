@@ -10,6 +10,7 @@ __pycache__
 htmlcov
 .openpasture
 .firecrawl
+.tmp
 dist
 build
 *.egg-info

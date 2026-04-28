@@ -1,0 +1,52 @@
+---
+title: "Knowledge"
+description: "How OpenPasture stores curated practitioner lessons and retrieves them during planning."
+---
+
+# Knowledge
+
+The knowledge base is the agent's durable ancestral memory.
+
+OpenPasture should not lean only on generic model priors. It should reason with
+curated lessons from trusted practitioners and connect those lessons to the daily
+condition of a specific farm.
+
+## Entry Types
+
+Every source is distilled into `KnowledgeEntry` records:
+
+- `principle`: a durable rule of thumb,
+- `technique`: a repeatable management move,
+- `signal`: something observable that changes interpretation,
+- `mistake`: a known anti-pattern or warning sign.
+
+## Retrieval
+
+When the agent evaluates a movement decision, it should retrieve the most
+relevant lessons for the current farm context. It should not load the whole
+corpus blindly or cite generic wisdom without a usable link to the situation.
+
+## Seed Knowledge
+
+The repo includes starter seed knowledge so a first local test can be useful
+before a farmer adds their own sources. On first run, the local knowledge store
+loads seed entries when the knowledge database is empty.
+
+Control seed loading:
+
+```bash
+export OPENPASTURE_LOAD_SEED=0 # skip auto-load
+export OPENPASTURE_LOAD_SEED=1 # force reload
+```
+
+## Productization Direction
+
+The long-term shape is a clean split:
+
+- `farm.db` holds farmer-specific operational data,
+- `knowledge.db` holds shared ancestral knowledge,
+- knowledge releases can be versioned and updated,
+- farmer records are not overwritten by knowledge updates.
+
+Source docs: `docs/knowledge-base.md` and
+`docs/knowledge-productization.md`.
