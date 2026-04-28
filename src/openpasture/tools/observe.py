@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from openpasture.domain import Observation, normalize_observation_source
-from openpasture.runtime import get_store, resolve_farm_id, set_active_farm_id
+from openpasture.context import get_store, resolve_farm_id, set_active_farm_id
 from openpasture.tools._common import (
     apply_argument_aliases,
     json_response,

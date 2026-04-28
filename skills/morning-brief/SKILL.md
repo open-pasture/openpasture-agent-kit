@@ -2,10 +2,6 @@
 name: morning-brief
 description: Generate the daily farm summary and recommendation.
 version: 1.0.0
-metadata:
-  hermes:
-    category: operations
-    tags: [grazing, briefing, morning]
 ---
 # Morning Brief
 

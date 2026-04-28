@@ -2,10 +2,6 @@
 name: knowledge-ingestion
 description: Turn trusted sources into structured ancestral knowledge with Firecrawl and openPasture tools.
 version: 1.0.0
-metadata:
-  hermes:
-    category: knowledge
-    tags: [firecrawl, curation, knowledge-base]
 ---
 # Knowledge Ingestion
 

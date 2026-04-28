@@ -2,10 +2,6 @@
 name: data-pipeline-setup
 description: Set up a farm data pipeline for an external service using Firecrawl browser profiles, farmer-assisted login, site exploration, and generated vendor skills. Use when a farmer asks to connect a service like NoFence or to create a recurring data pipeline.
 version: 1.0.0
-metadata:
-  hermes:
-    category: ingestion
-    tags: [data-pipeline, firecrawl, integration, browser]
 ---
 # Data Pipeline Setup
 

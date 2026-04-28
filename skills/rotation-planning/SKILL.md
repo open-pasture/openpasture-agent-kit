@@ -2,10 +2,6 @@
 name: rotation-planning
 description: Reason through near-term livestock movement decisions.
 version: 1.0.0
-metadata:
-  hermes:
-    category: grazing
-    tags: [rotation, movement, recovery]
 ---
 # Rotation Planning
 

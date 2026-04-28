@@ -1,170 +1,102 @@
-# openPasture
+# openPasture Agent Kit
 
-`openPasture` is an open-source grazing management companion built as a Hermes agent plugin.
+This repository contains the agent kit for `openPasture`, the agent-native farm operating toolkit for pasture-based livestock management.
 
-This repository specifically holds the Hermes implementation of the `openPasture`
-agent. If future runtimes are built for other frameworks, they should live in
-separate sibling repositories instead of reshaping this one into a generic
-multi-framework shell.
+`openPasture` is the product suite. This repo packages the portable agent-facing kit: tools, skills, farm state, knowledge, connector adapters, and operating opinions that can bolt onto an agent brain. The richest runtime is a coding agent with CLI access, skills, files, and code execution. MCP is a supported integration method for chat assistants and other MCP-capable clients. Hermes remains one supported adapter.
 
-It helps pasture-raised livestock farmers reason about daily movement decisions by combining:
+## Product Thesis
 
-- practitioner knowledge from trusted regenerative farmers,
-- farm-specific context such as paddocks, herd state, and observations,
-- operational inputs like weather, satellite imagery, and farmer notes,
-- a conversational interface that works over messaging platforms.
+The farmer brings a conversation surface. The agent brings reasoning. `openPasture` brings the farming domain:
 
-The agent is the product. The hosted offering is a wrapper around the same core.
+- executable tools for farm setup, observations, plans, knowledge, and data pipelines,
+- portable markdown skills that teach an agent how to work through farm operations,
+- curated practitioner knowledge from trusted regenerative agriculture sources,
+- local-first farm state backed by SQLite by default,
+- ingestion paths for weather, satellite, photos, and vendor telemetry,
+- a plain-language operating stance encoded in `SOUL.md`.
 
-## What It Does
+The goal is to turn any capable general agent into a useful companion for managing a pasture-based livestock farm alongside the farmer.
 
-- stores farms, paddocks, herd position, and observations in local SQLite,
-- uses a preferred first-run onboarding workflow to create the initial farm state,
-- auto-loads foundational grazing knowledge on first run,
-- ingests curated grazing knowledge from YouTube transcripts and structured notes,
-- stores farm geometry, herd state, and observations,
-- generates a morning brief with a move, stay, or ask-for-more-information recommendation,
-- schedules a recurring morning-brief job inside the agent runtime,
-- directs farmer attention toward the single observation that would reduce uncertainty most,
-- remains usable as a fully self-hosted open-source tool.
+## Runtime Modes
+
+- **Coding-agent mode:** a coding agent reads skills, runs the `openpasture` CLI, inspects files/state, and composes farm workflows directly in a workspace.
+- **MCP client mode:** ChatGPT, Claude, Cursor, and other MCP-capable clients access the same tools and skills through the MCP connector.
+- **Hermes adapter:** preserves the existing Hermes plugin entry point.
+
+## What Works Now
+
+- SQLite-backed farm, paddock, herd, observation, plan, and knowledge storage
+- First-run farm onboarding
+- Seed knowledge bootstrap
+- Knowledge search and lesson storage
+- Morning brief generation with `MOVE`, `STAY`, or `NEEDS_INFO`
+- Recurring local morning-brief scheduling
+- Data pipeline setup, persistence, and execution
+- Portable skill discovery
 
 ## Quickstart
-
-1. Install Hermes Agent.
-2. Install `openPasture`.
-3. Configure the alpha environment.
-4. Start talking to the agent.
 
 ```bash
 pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
 pip install -e .
+
 export OPENPASTURE_STORE=sqlite
 export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
 export OPENPASTURE_BRIEF_TIME="06:00"
-# Optional, but required for external knowledge ingestion:
+# Optional, required for external web knowledge ingestion:
 export FIRECRAWL_API_KEY="fc-..."
+```
 
+Use the CLI:
+
+```bash
+openpasture tools list
+openpasture skills list
+openpasture tool run setup_initial_farm --json '{"name":"Willow Creek","timezone":"America/Chicago","herd":{"id":"herd_1","species":"cattle","count":28},"paddocks":[{"id":"paddock_home","name":"Home","status":"grazing"}]}'
+openpasture tool run generate_morning_brief --json '{}'
+```
+
+Use Hermes:
+
+```bash
 hermes gateway setup
 hermes chat
 ```
 
-`openPasture` will bootstrap `farm.db`, `knowledge.db`, and seed knowledge on first run. If `FIRECRAWL_API_KEY` is missing, the agent still works for farm setup, observations, and morning briefs, but external knowledge ingestion stays disabled.
+Run the MCP connector:
 
-## Alpha Walkthrough
-
-1. Start with onboarding:
-
-```text
-I am setting up a new pasture-based livestock farm. Help me create the farm, paddocks, and first herd.
+```bash
+python -m openpasture.connectors.mcp
 ```
-
-2. Add a real field note after setup:
-
-```text
-Record this observation for the current paddock: forage is getting short and muddy near the water point.
-```
-
-3. Ask for the day's recommendation:
-
-```text
-Give me today's morning brief.
-```
-
-4. If you want to expand the ancestral knowledge base, add `FIRECRAWL_API_KEY` and use the knowledge-ingestion workflow to curate trusted sources.
-
-## Onboarding Mode
-
-First-run setup is treated as a special workflow instead of a permanently open-ended daily capability.
-
-- `setup_initial_farm` is the preferred onboarding primitive.
-- One farm per instance is the default alpha behavior.
-- Extra farm creation requires an explicit admin override.
-- Farmers can still describe land flexibly with map screenshots, rough boundaries, and landmarks; the agent should convert those inputs into structured geometry when possible and keep any unresolved clues in notes.
-
-## Included Skills
-
-- `farm-onboarding`: conversational setup of farm, paddocks, and herd state
-- `morning-brief`: daily `MOVE` / `STAY` / `NEEDS_INFO` recommendation flow
-- `pasture-assessment`: reconcile field notes with remote or indirect signals
-- `rotation-planning`: near-term movement reasoning with practical constraints
-- `knowledge-ingestion`: Firecrawl-assisted curation of trusted practitioner sources
 
 ## Project Shape
 
 ```text
 src/openpasture/
-  plugin.py          Hermes plugin entry point
-  domain/            Core domain primitives
-  tools/             Agent-callable tools
-  store/             Storage abstraction and backends
-  knowledge/         Knowledge ingestion and retrieval pipeline
-  ingestion/         External observation pipelines
-  briefing/          Morning brief assembly and scheduling
-skills/              Hermes skills used by the agent
-seed/                Foundational grazing knowledge
+  context.py           Runtime-agnostic kit context
+  toolkit.py           Framework-neutral tool catalog
+  connectors/          Hermes and MCP adapters
+  cli.py               Agent-friendly JSON CLI
+  plugin.py            Hermes compatibility shim
+  domain/              Core farm primitives
+  tools/               Dict-in, JSON-out tool handlers
+  store/               Storage protocols and backends
+  knowledge/           Seed loading, embeddings, retrieval, ingestion batches
+  ingestion/           External farm signal pipelines
+  briefing/            Farm context assembly, default advisor, scheduling
+skills/                Portable operational runbooks
+seed/                  Foundational grazing knowledge
+SOUL.md                Agent voice and operating philosophy
 ```
-
-## Development Stance
-
-This repository biases strongly toward the agent.
-
-If a capability can live inside the open-source agent and still support self-hosting, it belongs here. The hosted platform should only make provisioning easier and layer account, billing, and dashboard functionality on top.
-
-## OSS And Cloud Boundary
-
-The OSS agent remains the canonical farm reasoning core.
-
-- This repo owns the agent runtime, tool surface, storage contracts, knowledge
-  logic, and the self-hosted morning brief loop.
-- The separate cloud repo should own hosting, auth, billing, messaging
-  orchestration, support tooling, and the proprietary UI/product surface.
-
-Read [`docs/cloud-boundary.md`](docs/cloud-boundary.md) for the durable boundary
-and [`docs/cloud-handoff.md`](docs/cloud-handoff.md) for the current alpha
-handoff baseline.
-
-## Status
-
-This repository is ready for a simple self-hosted alpha.
-
-What works now:
-
-- real Hermes plugin registration and tool calling
-- SQLite-backed farm and knowledge storage
-- first-run seed knowledge bootstrap
-- weather-assisted morning brief generation
-- recurring morning-brief scheduling inside the runtime
-- knowledge search and structured lesson storage
-
-What comes after alpha:
-
-- `ConvexStore` for the hosted cloud data plane
-- satellite ingestion
-- photo ingestion
-- knowledge release packaging and signed update flow
-
-## Known Limitations
-
-- `ConvexStore` is still a stub, so hosted/cloud mode is not ready yet.
-- Satellite and photo ingestion are not implemented yet.
-- Scheduled brief delivery stays local to the Hermes runtime in this repo. Hosted transport orchestration still belongs in the separate cloud wrapper.
-- External web knowledge ingestion requires `FIRECRAWL_API_KEY`.
 
 ## Maintainer Validation
 
-Use the reusable alpha harness after Hermes updates or plugin changes:
-
 ```bash
+uv run --python 3.11 pytest
 uv run --python 3.11 openpasture-alpha-validate automated
-uv run --python 3.11 openpasture-alpha-validate docker
+uv run --python 3.11 openpasture validate alpha automated
 ```
 
-For the full two-profile pilot validation flow, see [`docs/alpha-validation.md`](docs/alpha-validation.md).
+## Boundary
 
-## Maintainer Docs
-
-- [`docs/alpha-validation.md`](docs/alpha-validation.md): repeatable validation flow
-- [`docs/cloud-boundary.md`](docs/cloud-boundary.md): what stays in OSS vs what belongs in the cloud repo
-- [`docs/cloud-handoff.md`](docs/cloud-handoff.md): current alpha baseline and handoff notes
-- [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md): contribution and validation expectations
-- [`.github/SECURITY.md`](.github/SECURITY.md): vulnerability reporting guidance
+This repository owns the portable agent kit for the openPasture farm operating toolkit. Hosted infrastructure, billing, account management, proprietary UI, and support workflows should wrap this kit instead of replacing it.

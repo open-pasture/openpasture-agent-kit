@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from openpasture.briefing.assembler import MorningBriefAssembler
-from openpasture.runtime import get_store, resolve_farm_id, set_active_farm_id
+from openpasture.context import get_store, resolve_farm_id, set_active_farm_id
 from openpasture.tools._common import json_response, parse_date_value
 
 

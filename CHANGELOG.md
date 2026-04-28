@@ -2,7 +2,7 @@
 
 ## 0.1.0-alpha
 
-- verified the real Hermes plugin path with an end-to-end smoke run that creates a farm, records an observation, generates a morning brief, and searches knowledge
+- verified the real Hermes connector path with an end-to-end smoke run that creates a farm, records an observation, generates a morning brief, and searches knowledge
 - added Hermes-compatible tool wrappers so plugin tools work when Hermes injects metadata like `task_id`
 - implemented recurring morning-brief scheduling with `apscheduler` and runtime wiring for farm bootstrap and delivery injection
 - changed seed knowledge loading to bootstrap automatically on first run, with explicit skip and reload controls through `OPENPASTURE_LOAD_SEED`

@@ -1,6 +1,6 @@
 name: openpasture
 version: 0.1.0-alpha
-description: Regenerative grazing advisor for pasture-raised livestock farmers.
+description: Hermes connector manifest for the openPasture agent kit.
 provides_tools:
   - save_data_pipeline
   - run_data_pipeline

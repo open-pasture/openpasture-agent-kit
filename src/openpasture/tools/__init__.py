@@ -1,1 +1,1 @@
-"""Hermes tool modules for openPasture."""
+"""Framework-neutral tool handlers for openPasture."""

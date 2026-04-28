@@ -2,74 +2,47 @@
 
 ## Founding Principle
 
-Complex systems are best worked with, not abstracted away from. Regenerative agriculture rests on that insight, and `openPasture` is built from the same premise.
+The coding agent is becoming the core software primitive. Domain products should increasingly look like portable packages of tools, knowledge, skills, data integrations, and operating opinions that equip an agent to do useful work.
 
-The daily movement decision is a living systems problem. It depends on pasture condition, rest periods, weather, herd pressure, labor realities, and the farmer's accumulated judgment. The goal is not to replace that judgment. The goal is to extend it.
-
-## The Bottleneck
-
-The limiting factor in regenerative grazing is not raw data collection. It is attention.
-
-A farmer cannot be everywhere every morning. Yet a movement decision still has to be made with enough context to avoid overgrazing, preserve recovery, and keep operations moving.
-
-`openPasture` exists to scale observational capacity without collapsing the farm into reductionist metrics.
+`openPasture` applies that idea to pasture-based livestock farming. This repository is the agent kit for that product suite.
 
 ## Product Thesis
 
-A farmer needs two classes of input to make a good movement decision:
+A farmer should be able to use the agent interface they prefer: ChatGPT, Claude, Cursor, Hermes, an open-source local agent, or a hosted openPasture companion. Once connected, the agent should gain the farm-specific state, practitioner knowledge, operational runbooks, and executable tools needed to help manage the farm alongside the farmer.
 
-1. accumulated industry knowledge,
-2. current farm context.
+The product is not the UI alone. The product is the farm operating capability that can travel between agent surfaces. This repo packages the agent kit that makes that portability real.
 
-Accumulated knowledge comes from practitioners who have already learned what healthy rotation looks like in the field. Current context comes from the state of the farm today: notes, weather, imagery, photos, and prior decisions.
+## The Farmer Loop
 
-An agent can combine those two inputs into a daily recommendation and a targeted request for the next most useful observation.
+Every day, the system should help answer:
 
-## The Product
+- what is true about the farm right now,
+- whether animals should `MOVE`, `STAY`, or whether the agent `NEEDS_INFO`,
+- why that recommendation makes sense,
+- what single observation would reduce uncertainty most.
 
-The product is a conversational farm companion.
+The farmer remains the operator. The agent extends attention, memory, and execution.
 
-Every morning it should be able to say, in plain language:
+## What openPasture Provides
 
-- what it believes is true about the farm,
-- whether the animals should move, stay, or wait for more information,
-- why it thinks that,
-- what single observation would reduce uncertainty the most.
-
-## Agent-First Stance
-
-The open-source Hermes plugin is the primary product artifact.
-
-Everything that can reasonably live inside the self-hostable agent should live there. Hosted infrastructure is valuable, but secondary. The community value comes from the agent core being coherent, useful, and extensible.
-
-## Inputs We Can Start With
-
-- farmer field notes,
-- farmer photos,
-- weather data,
-- satellite imagery,
-- curated practitioner knowledge, especially video transcripts.
-
-These are enough to build the first useful morning brief loop.
+- portable skills for farm operations,
+- curated grazing and livestock knowledge,
+- executable tools for farm state and decisions,
+- storage protocols and local-first backends,
+- ingestion pipelines for weather, satellite, photos, and vendor telemetry,
+- automation patterns for briefs, alerts, and approval flows,
+- a plain-language operating philosophy.
 
 ## What We Are Not Building First
 
 - autonomous collar control,
-- real-time herd tracking,
 - hardware firmware,
 - dense soil instrumentation,
-- a dashboard-first product.
+- dashboard-first SaaS workflows,
+- a proprietary-only cloud core.
 
-Those may matter later. The first milestone is a trustworthy daily advisor.
-
-## Why Now
-
-Three things now converge:
-
-- modern LLM agents can reason across heterogeneous signals,
-- satellite and weather data are accessible enough to be practical inputs,
-- messaging-first software can meet farmers where they already are.
+Those may matter later. The durable foundation is a toolkit that any qualified agent can use.
 
 ## Success
 
-The product succeeds when a farmer says: "This matches how I think about my land." It wins when they say: "I can manage more acres because this is here."
+The product succeeds when a farmer can connect an agent and say: "This understands my land, remembers my operation, and helps me make better calls without taking judgment away from me."

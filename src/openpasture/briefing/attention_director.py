@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from openpasture.domain.observation import is_field_observation_source
-from openpasture.runtime import get_store
+from openpasture.context import get_store
 from openpasture.store.protocol import FarmStore
 
 

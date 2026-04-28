@@ -1,4 +1,4 @@
-"""Hermes tools for persisting and running farm data pipelines."""
+"""Agent tools for persisting and running farm data pipelines."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from openpasture.domain import DataPipeline
 from openpasture.ingestion import DataPipelineRunner
-from openpasture.runtime import get_skills_dir, get_store, resolve_farm_id, set_active_farm_id
+from openpasture.context import get_skills_dir, get_store, resolve_farm_id, set_active_farm_id
 from openpasture.tools._common import (
     json_response,
     make_id,

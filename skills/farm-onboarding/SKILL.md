@@ -2,10 +2,6 @@
 name: farm-onboarding
 description: Run the constrained first-run onboarding workflow for one farm.
 version: 1.0.0
-metadata:
-  hermes:
-    category: setup
-    tags: [onboarding, farm, paddocks]
 ---
 # Farm Onboarding
 

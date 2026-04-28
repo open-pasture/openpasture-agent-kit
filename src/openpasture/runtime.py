@@ -8,14 +8,12 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, MutableMapping, TYPE_CHECKING
 
+from openpasture import context as toolkit_context
 from openpasture.knowledge.embedder import KnowledgeEmbedder
 from openpasture.knowledge.retriever import KnowledgeRetriever
 from openpasture.knowledge.seed_loader import load_seed_knowledge
-from openpasture.store.convex import ConvexStore
 from openpasture.store.knowledge_protocol import KnowledgeStore
 from openpasture.store.protocol import FarmStore
-from openpasture.store.sqlite import SQLiteStore
-from openpasture.store.sqlite_knowledge import SQLiteKnowledgeStore
 
 if TYPE_CHECKING:
     from openpasture.briefing.scheduler import MorningBriefScheduler
@@ -50,6 +48,7 @@ _runtime_notices: list[str] = []
 def reset_runtime() -> None:
     """Reset cached runtime state, primarily for tests."""
     global _store, _knowledge_store, _embedder, _retriever, _active_farm_id, _seed_loaded, _soul_prompt, _brief_scheduler, _runtime_notices
+    toolkit_context.reset_default_context()
     if _brief_scheduler is not None:
         _brief_scheduler.shutdown()
     _store = None
@@ -68,100 +67,49 @@ def _data_dir() -> Path:
 
 
 def get_data_dir() -> Path:
-    data_dir = _data_dir()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir
+    return toolkit_context.get_data_dir()
 
 
 def get_skills_dir() -> Path:
-    skills_dir = Path(
-        os.environ.get(
-            "OPENPASTURE_SKILLS_DIR",
-            Path(__file__).resolve().parents[2] / "skills",
-        )
-    ).expanduser()
-    skills_dir.mkdir(parents=True, exist_ok=True)
-    return skills_dir
+    return toolkit_context.get_skills_dir()
 
 
 def get_ingest_queue_path() -> Path:
-    return get_data_dir() / "ingest-queue.json"
+    return toolkit_context.get_ingest_queue_path()
 
 
 def get_ingestion_batches_dir() -> Path:
-    batches_dir = get_data_dir() / "knowledge-batches"
-    batches_dir.mkdir(parents=True, exist_ok=True)
-    return batches_dir
+    return toolkit_context.get_ingestion_batches_dir()
 
 
 def init_store(config: MutableMapping[str, object] | None = None) -> FarmStore:
     """Initialize the configured storage backend."""
     global _store
-    if _store is not None:
+    if config is not None:
+        context = toolkit_context.initialize(config)
+        _store = context.get_store()
         return _store
-
-    backend = str(os.environ.get("OPENPASTURE_STORE", "sqlite")).lower()
-    if config and isinstance(config.get("store"), str):
-        backend = str(config["store"]).lower()
-
-    if backend == "sqlite":
-        store = SQLiteStore(_data_dir())
-        store.bootstrap()
-        _store = store
-        return _store
-
-    if backend == "convex":
-        deployment_url = os.environ.get("OPENPASTURE_CONVEX_URL", "")
-        deploy_key = os.environ.get("OPENPASTURE_CONVEX_KEY")
-        if not deployment_url.strip():
-            raise ValueError(
-                "OPENPASTURE_STORE=convex requires OPENPASTURE_CONVEX_URL to be set."
-            )
-        if not deploy_key:
-            raise ValueError(
-                "OPENPASTURE_STORE=convex requires OPENPASTURE_CONVEX_KEY to be set."
-            )
-        _store = ConvexStore(deployment_url=deployment_url, deploy_key=deploy_key)
-        return _store
-
-    raise ValueError(f"Unsupported OPENPASTURE_STORE backend '{backend}'.")
+    _store = toolkit_context.get_store()
+    return _store
 
 
 def init_knowledge_store(config: MutableMapping[str, object] | None = None) -> KnowledgeStore:
     """Initialize the configured knowledge backend."""
     del config
     global _knowledge_store
-    if _knowledge_store is not None:
-        return _knowledge_store
-
-    knowledge_store = SQLiteKnowledgeStore(get_data_dir())
-    knowledge_store.bootstrap()
-    _knowledge_store = knowledge_store
+    _knowledge_store = toolkit_context.get_knowledge_store()
     return _knowledge_store
 
 
 def init_knowledge(config: MutableMapping[str, object] | None = None) -> KnowledgeRetriever:
     """Initialize embedding and retrieval backends."""
     global _embedder, _retriever, _seed_loaded
-    if _retriever is not None:
-        return _retriever
-
-    persist_dir = get_data_dir() / "chroma"
-    _embedder = KnowledgeEmbedder(persist_dir=persist_dir)
-    knowledge_store = get_knowledge_store()
-    _retriever = KnowledgeRetriever(persist_dir=persist_dir, store=knowledge_store)
-
-    seed_mode = os.environ.get("OPENPASTURE_LOAD_SEED")
-    force_skip_seed = seed_mode == "0"
-    force_reload_seed = seed_mode == "1"
-    should_auto_load_seed = not force_skip_seed and knowledge_store.count() == 0
-
-    if _embedder is not None and (force_reload_seed or (should_auto_load_seed and not _seed_loaded)):
-        loaded_entries = load_seed_knowledge(knowledge_store, _embedder)
-        _seed_loaded = True
-        if loaded_entries:
-            reason = "forced reload" if force_reload_seed else "first-run bootstrap"
-            logger.info("Loaded %s seed knowledge entries during %s.", len(loaded_entries), reason)
+    toolkit_context.load_seed_knowledge = load_seed_knowledge
+    if config is not None:
+        toolkit_context.initialize(config)
+    _retriever = toolkit_context.get_knowledge()
+    _embedder = toolkit_context.get_embedder()
+    _seed_loaded = True
     return _retriever
 
 
@@ -171,11 +119,14 @@ def initialize(
     delivery_handler: Callable[[str], bool] | None = None,
 ) -> None:
     """Initialize all runtime services used by the plugin."""
-    refresh_runtime_notices()
-    init_store(config)
-    init_knowledge_store(config)
-    init_knowledge(config)
-    init_brief_scheduler(config, delivery_handler=delivery_handler)
+    global _store, _knowledge_store, _embedder, _retriever, _brief_scheduler
+    toolkit_context.load_seed_knowledge = load_seed_knowledge
+    context = toolkit_context.initialize(config, delivery_handler=delivery_handler)
+    _store = context.get_store()
+    _knowledge_store = context.get_knowledge_store()
+    _retriever = context.get_knowledge()
+    _embedder = context.get_embedder()
+    _brief_scheduler = context.get_brief_scheduler()
 
 
 def init_brief_scheduler(
@@ -184,94 +135,57 @@ def init_brief_scheduler(
     delivery_handler: Callable[[str], bool] | None = None,
 ) -> MorningBriefScheduler:
     """Initialize recurring morning-brief scheduling."""
-
-    del config
     global _brief_scheduler
-    from openpasture.briefing.scheduler import MorningBriefScheduler, parse_brief_time
-
-    hour, minute = parse_brief_time(os.environ.get("OPENPASTURE_BRIEF_TIME", "06:00"))
-    if _brief_scheduler is None:
-        _brief_scheduler = MorningBriefScheduler(
-            store=get_store(),
-            deliver_fn=delivery_handler,
-            default_hour=hour,
-            default_minute=minute,
-        )
-    elif delivery_handler is not None:
-        _brief_scheduler.set_delivery_handler(delivery_handler)
-
-    try:
-        farms = get_store().list_farms()
-    except (AttributeError, NotImplementedError):
-        logger.info("Skipping brief scheduler bootstrap for the active store backend.")
+    if config is not None or delivery_handler is not None:
+        context = toolkit_context.initialize(config, delivery_handler=delivery_handler)
+        _brief_scheduler = context.get_brief_scheduler()
         return _brief_scheduler
-
-    for farm in farms:
-        _brief_scheduler.schedule(farm.id, farm.timezone)
+    _brief_scheduler = toolkit_context.get_brief_scheduler()
     return _brief_scheduler
 
 
 def get_store() -> FarmStore:
-    if _store is None:
-        return init_store()
-    return _store
+    return toolkit_context.get_store()
 
 
 def get_brief_scheduler() -> MorningBriefScheduler:
-    if _brief_scheduler is None:
-        return init_brief_scheduler()
-    return _brief_scheduler
+    return toolkit_context.get_brief_scheduler()
 
 
 def refresh_runtime_notices() -> list[str]:
     global _runtime_notices
-    notices: list[str] = []
-    if not os.environ.get("FIRECRAWL_API_KEY", "").strip():
-        notices.append("Knowledge ingestion from web sources is unavailable until FIRECRAWL_API_KEY is set.")
-    _runtime_notices = notices
+    _runtime_notices = toolkit_context.refresh_runtime_notices()
     return list(_runtime_notices)
 
 
 def get_runtime_notices() -> list[str]:
-    if not _runtime_notices:
-        refresh_runtime_notices()
-    return list(_runtime_notices)
+    return toolkit_context.get_runtime_notices()
 
 
 def get_embedder() -> KnowledgeEmbedder:
-    if _embedder is None:
-        init_knowledge()
-    if _embedder is None:
-        raise RuntimeError("Knowledge embedder is not initialized.")
-    return _embedder
+    return toolkit_context.get_embedder()
 
 
 def get_knowledge_store() -> KnowledgeStore:
-    if _knowledge_store is None:
-        return init_knowledge_store()
-    return _knowledge_store
+    return toolkit_context.get_knowledge_store()
 
 
 def get_knowledge() -> KnowledgeRetriever:
-    if _retriever is None:
-        return init_knowledge()
-    return _retriever
+    return toolkit_context.get_knowledge()
 
 
 def set_active_farm_id(farm_id: str | None) -> None:
     global _active_farm_id
     _active_farm_id = farm_id
+    toolkit_context.set_active_farm_id(farm_id)
 
 
 def get_active_farm_id() -> str | None:
-    return _active_farm_id
+    return toolkit_context.get_active_farm_id()
 
 
 def schedule_farm_brief(farm_id: str) -> None:
-    farm = get_store().get_farm(farm_id)
-    if farm is None:
-        return
-    get_brief_scheduler().schedule(farm.id, farm.timezone)
+    toolkit_context.schedule_farm_brief(farm_id)
 
 
 def get_soul_prompt() -> str:
@@ -283,10 +197,7 @@ def get_soul_prompt() -> str:
 
 
 def _list_farms_safe() -> list[Any]:
-    try:
-        return list(get_store().list_farms())
-    except (AttributeError, NotImplementedError):
-        return []
+    return toolkit_context.get_default_context().list_farms_safe()
 
 
 def _format_farm_inventory(farms: list[Any], *, limit: int = 3) -> str:
@@ -297,32 +208,11 @@ def _format_farm_inventory(farms: list[Any], *, limit: int = 3) -> str:
 
 
 def _resolve_active_farm_id() -> str | None:
-    farm_id = get_active_farm_id()
-    if farm_id and get_store().get_farm(farm_id) is not None:
-        return farm_id
-    farms = _list_farms_safe()
-    if len(farms) == 1:
-        set_active_farm_id(farms[0].id)
-        return farms[0].id
-    return None
+    return toolkit_context.get_default_context().resolve_active_farm_id()
 
 
 def resolve_farm_id(args: MutableMapping[str, object] | dict[str, object], *, key: str = "farm_id") -> str:
-    explicit_farm_id = args.get(key)
-    if isinstance(explicit_farm_id, str) and explicit_farm_id.strip():
-        farm_id = explicit_farm_id.strip()
-        set_active_farm_id(farm_id)
-        return farm_id
-
-    if active_farm_id := _resolve_active_farm_id():
-        return active_farm_id
-
-    farms = _list_farms_safe()
-    if not farms:
-        raise ValueError("No farm is loaded yet. Register a farm first or pass 'farm_id' explicitly.")
-    raise ValueError(
-        "Multiple farms are registered for this instance. Pass 'farm_id' explicitly for farm-specific tools."
-    )
+    return toolkit_context.resolve_farm_id(args, key=key)
 
 
 def _resolve_context_farm() -> Any | None:

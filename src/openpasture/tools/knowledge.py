@@ -9,7 +9,7 @@ from pathlib import Path
 
 from openpasture.domain import KnowledgeEntry, SourceRecord
 from openpasture.knowledge.runner import KnowledgeIngestionRunner
-from openpasture.runtime import (
+from openpasture.context import (
     get_data_dir,
     get_embedder,
     get_ingest_queue_path,

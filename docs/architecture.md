@@ -1,155 +1,70 @@
 # Architecture
 
-`openPasture` is a Hermes plugin organized around five subsystems:
-
-1. tools,
-2. domain,
-3. knowledge,
-4. ingestion,
-5. briefing.
-
-The key design rule is simple: if behavior can remain in the self-hostable agent, keep it in the agent.
-
-## System Overview
+This repository is the agent kit for `openPasture`, the agent-native farm operating toolkit. The ideal runtime is a coding agent with CLI access, skills, files, and code execution. MCP is a supported integration method for chat assistants and other MCP-capable clients. The kit owns the portable farming tools, skills, state access, and connector surfaces.
 
 ```mermaid
 flowchart TD
-    Farmer[Farmer]
-    Hermes[HermesRuntime]
-    Plugin[openPasturePlugin]
-    Tools[Tools]
-    Domain[DomainPrimitives]
-    Store[FarmStore]
-    Knowledge[KnowledgePipeline]
-    Ingestion[ObservationPipelines]
-    Briefing[MorningBriefing]
-    Backend[StoreBackend]
-
-    Farmer --> Hermes
-    Hermes --> Plugin
-    Plugin --> Tools
-    Tools --> Domain
-    Tools --> Store
-    Knowledge --> Store
-    Ingestion --> Store
-    Briefing --> Store
-    Briefing --> Knowledge
-    Store --> Backend
+    Farmer[Farmer] --> AgentBrain["Any Agent Brain"]
+    AgentBrain --> MCP["MCP Connector"]
+    AgentBrain --> Hermes["Hermes Connector"]
+    AgentBrain --> CLI["CLI Connector"]
+    MCP --> Toolkit["openPasture Agent Kit"]
+    Hermes --> Toolkit
+    CLI --> Toolkit
+    Toolkit --> Context["OpenPastureContext"]
+    Context --> Store["FarmStore / KnowledgeStore"]
+    Toolkit --> Skills["Portable Skills"]
+    Toolkit --> Knowledge["Knowledge Retrieval"]
+    Toolkit --> Ingestion["Signal Ingestion"]
+    Toolkit --> Briefing["Briefing And Decisions"]
 ```
 
-## The Five Subsystems
+## Kit Layers
+
+### Context
+
+`src/openpasture/context.py` is the runtime-agnostic kit kernel. It initializes stores, knowledge retrieval, data directories, skill directories, active farm state, and optional scheduling.
+
+### Tool Catalog
+
+`src/openpasture/toolkit.py` defines each executable farm capability once. A `ToolSpec` includes the name, JSON schema, handler, description, tags, and related skills. Connectors consume this catalog instead of duplicating registration tables.
+
+### Connectors
+
+`src/openpasture/connectors/hermes.py` registers catalog tools and hooks with Hermes.
+
+`src/openpasture/connectors/mcp.py` exposes the catalog and skills to MCP-capable agents.
+
+`src/openpasture/cli.py` exposes the same capabilities as JSON-in/JSON-out shell commands.
 
 ### Tools
 
-`src/openpasture/tools/` contains Hermes-callable capabilities.
-
-Examples:
-
-- register a farm,
-- add paddocks,
-- record an observation,
-- ingest a YouTube source,
-- search prior knowledge,
-- generate a morning brief,
-- approve or reject a plan.
-
-Tools should stay thin. They validate inputs, call into domain logic and store backends, and return structured outputs.
+`src/openpasture/tools/` contains framework-neutral handlers. They accept a payload dict and return JSON. This shape works for Hermes, MCP, CLI, cron, tests, and future adapters.
 
 ### Domain
 
-`src/openpasture/domain/` defines the shared language of the system.
+`src/openpasture/domain/` defines farm primitives: farms, paddocks, herds, observations, movement decisions, knowledge entries, farmer actions, and data pipelines. These objects remain framework-agnostic.
 
-These objects should remain framework-agnostic. They model farms, paddocks, herds, observations, knowledge entries, and movement decisions.
+### Storage
+
+`FarmStore` and `KnowledgeStore` protocols keep storage interchangeable.
+
+- SQLite is the default self-hosted backend.
+- Convex is the hosted/cloud backend direction.
+- Future backends should implement the protocols rather than changing tool behavior.
 
 ### Knowledge
 
-`src/openpasture/knowledge/` handles ancestral knowledge.
+`src/openpasture/knowledge/` handles seed loading, lesson storage, embedding, retrieval, ingestion queues, and batch manifests. `seed/` contains durable foundational knowledge.
 
-The core flow is:
+### Skills
 
-1. acquire a source such as a YouTube transcript,
-2. extract structured lessons,
-3. embed them,
-4. retrieve them during planning.
-
-### Ingestion
-
-`src/openpasture/ingestion/` turns external signals into `Observation` records.
-
-Initial pipelines include:
-
-- weather,
-- satellite imagery,
-- farmer photos.
+`skills/` contains portable markdown runbooks. Skills are not Hermes-only. Connectors can list or read them so an agent can load the operating procedure it needs.
 
 ### Briefing
 
-`src/openpasture/briefing/` assembles the morning brief.
+`src/openpasture/briefing/` separates context assembly from the default heuristic advisor. Context assembly gathers farm state, observations, weather, and relevant knowledge. The default advisor can still emit `MOVE`, `STAY`, or `NEEDS_INFO`, but a stronger agent brain can reason over the same context itself.
 
-It should answer four questions:
+## Design Rule
 
-- what is true,
-- what should happen,
-- why,
-- what additional observation would help most.
-
-## Storage Abstraction
-
-The self-hosted and hosted deployments share the same agent, but not necessarily the same storage backend.
-
-```mermaid
-flowchart LR
-    Tool[ToolHandler] --> Protocol[FarmStoreProtocol]
-    Protocol --> SQLite[SQLiteStore]
-    Protocol --> Convex[ConvexStore]
-```
-
-`FarmStore` is the seam. It keeps the agent independent from any one infrastructure stack.
-
-- `SQLiteStore` supports self-hosting.
-- `ConvexStore` supports the hosted wrapper and dashboard synchronization.
-
-## Deployment Modes
-
-### Self-Hosted
-
-- Hermes runs on the farmer's machine or VPS.
-- `openPasture` uses `SQLiteStore`.
-- messaging is configured directly in Hermes.
-- scheduling happens inside the agent process.
-
-### Hosted
-
-- Hermes still runs the same plugin.
-- `openPasture` uses `ConvexStore`.
-- provisioning, billing, and dashboarding are external wrappers.
-
-## Integrations
-
-The agent may connect to:
-
-- an LLM provider for reasoning and embeddings,
-- YouTube transcript sources for knowledge ingestion,
-- weather APIs,
-- STAC-compatible satellite sources,
-- optional telemetry providers such as Braintrust or PostHog.
-
-The hosted platform may additionally connect to Clerk, Stripe, Vercel, and Convex, but those integrations should not become prerequisites for the core agent.
-
-## Context Injection
-
-Hermes hooks should be used to make the agent feel situationally aware without hard-coding behavior into infrastructure.
-
-Typical hook responsibilities:
-
-- inject active farm context at session start,
-- inject recent movement context before planning,
-- record telemetry around tool calls and LLM turns.
-
-## Litmus Test
-
-Before moving behavior out of the agent, ask:
-
-> Can a self-hosted farmer still use this capability if we keep it in the agent?
-
-If the answer is yes, keep it in the agent.
+If behavior helps any agent operate a farm, keep it in the kit. If behavior only adapts the kit to one runtime, keep it in a connector.

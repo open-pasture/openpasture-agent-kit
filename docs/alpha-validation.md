@@ -1,6 +1,6 @@
 # Alpha Validation
 
-This runbook is for maintainers validating `openPasture` after a Hermes update or plugin change.
+This runbook is for maintainers validating the `openPasture` agent kit after a Hermes connector update or compatibility change.
 
 For the broader architectural split and the current cloud handoff notes, also
 read [`cloud-boundary.md`](cloud-boundary.md) and
@@ -31,7 +31,7 @@ uv run --python 3.11 openpasture-alpha-validate automated
 
 That command runs the `pytest -m alpha` subset, which covers:
 
-- Hermes plugin registration and tool-calling compatibility
+- Hermes connector registration and tool-calling compatibility
 - the farm-to-brief public tool flow
 - scheduled morning brief persistence and delivery injection
 - first-run seed loading

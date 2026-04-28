@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from openpasture.domain import DataPipeline, Farm
 from openpasture.ingestion import DataPipelineRunner
@@ -38,7 +39,7 @@ def test_data_pipeline_runner_collects_observations(tmp_path, monkeypatch):
                 {
                     "observations": [
                         {
-                            "observed_at": "2026-04-12T05:30:00",
+                            "observed_at": datetime.utcnow().isoformat(),
                             "content": "Two fence breach alerts overnight.",
                             "metrics": {"breach_count": 2},
                             "tags": ["alerts"],

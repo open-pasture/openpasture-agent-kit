@@ -12,4 +12,4 @@ ENV PYTHONUNBUFFERED=1
 ENV OPENPASTURE_STORE=sqlite
 ENV OPENPASTURE_DATA_DIR=/data/openpasture
 ENV OPENPASTURE_BRIEF_TIME=06:00
-CMD ["hermes"]
+CMD ["openpasture", "tools", "list"]

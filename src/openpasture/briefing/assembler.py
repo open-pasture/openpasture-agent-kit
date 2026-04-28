@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from logging import getLogger
 
 from openpasture.briefing.attention_director import AttentionDirector
-from openpasture.domain import DailyBrief, MovementDecision, Paddock
+from openpasture.domain import DailyBrief, Farm, Herd, KnowledgeEntry, MovementDecision, Observation, Paddock
 from openpasture.domain.observation import is_field_observation_source
 from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.knowledge.retriever import KnowledgeRetriever
-from openpasture.runtime import get_knowledge, get_store
+from openpasture.context import get_knowledge, get_store
 from openpasture.store.protocol import FarmStore
 
 logger = getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class MorningBriefContext:
+    """Structured farm context an agent can reason over before recommending action."""
+
+    farm: Farm
+    herds: list[Herd]
+    paddocks: list[Paddock]
+    recent_observations: list[Observation]
+    weather_observations: list[Observation]
+    relevant_knowledge: list[KnowledgeEntry]
 
 
 class MorningBriefAssembler:
@@ -59,9 +72,56 @@ class MorningBriefAssembler:
 
         return None, False
 
-    def _build_decision(self, farm_id: str, herd_id: str | None, current_paddock_id: str | None) -> MovementDecision:
-        paddocks = self.store.list_paddocks(farm_id)
-        observations = self.store.get_recent_observations(farm_id, days=7)
+    def _collect_weather(self, farm_id: str) -> list[Observation]:
+        weather_pipeline = WeatherObservationPipeline(self.store)
+        try:
+            weather_observations = weather_pipeline.collect(farm_id)
+        except Exception:
+            logger.warning("Weather pipeline raised unexpectedly for farm '%s'. Continuing without weather.", farm_id)
+            return []
+        for observation in weather_observations:
+            self.store.record_observation(observation)
+        return weather_observations
+
+    def assemble_context(self, farm_id: str) -> MorningBriefContext:
+        """Gather farm state and retrieved knowledge without making a recommendation."""
+
+        farm = self.store.get_farm(farm_id)
+        if farm is None:
+            raise ValueError(f"Farm '{farm_id}' does not exist.")
+
+        weather_observations = self._collect_weather(farm_id)
+        recent_observations = self.store.get_recent_observations(farm_id, days=7)
+        knowledge_query = " ".join(
+            [
+                "movement decision",
+                " ".join(obs.content.lower() for obs in recent_observations),
+                "recovery residual weather",
+            ]
+        ).strip()
+        relevant_knowledge = self.retriever.search(
+            knowledge_query or "grazing movement decision",
+            farm_id=farm_id,
+            limit=3,
+        )
+        return MorningBriefContext(
+            farm=farm,
+            herds=self.store.get_herds(farm_id),
+            paddocks=self.store.list_paddocks(farm_id),
+            recent_observations=recent_observations,
+            weather_observations=weather_observations,
+            relevant_knowledge=relevant_knowledge,
+        )
+
+    def _build_decision(
+        self,
+        context: MorningBriefContext,
+        herd_id: str | None,
+        current_paddock_id: str | None,
+    ) -> MovementDecision:
+        farm_id = context.farm.id
+        paddocks = context.paddocks
+        observations = context.recent_observations
         effective_paddock_id, inferred_position = self._infer_current_paddock_id(
             observations=observations,
             herd_id=herd_id,
@@ -109,14 +169,7 @@ class MorningBriefAssembler:
             reasoning.append("Recent observations do not show urgent signs that animals need to move today.")
             reasoning.append("The current paddock still appears workable based on the last field notes.")
 
-        knowledge_query = " ".join(
-            [
-                "movement decision",
-                current_text,
-                "recovery residual weather",
-            ]
-        ).strip()
-        knowledge_entries = self.retriever.search(knowledge_query or "grazing movement decision", farm_id=farm_id, limit=3)
+        knowledge_entries = context.relevant_knowledge
         reasoning.extend(entry.content for entry in knowledge_entries[:2])
 
         return MovementDecision(
@@ -136,25 +189,13 @@ class MorningBriefAssembler:
         )
 
     def assemble(self, farm_id: str, for_date: date | None = None) -> DailyBrief:
-        farm = self.store.get_farm(farm_id)
-        if farm is None:
-            raise ValueError(f"Farm '{farm_id}' does not exist.")
-
-        herds = self.store.get_herds(farm_id)
+        context = self.assemble_context(farm_id)
+        herds = context.herds
         current_herd = herds[0] if herds else None
         current_paddock_id = current_herd.current_paddock_id if current_herd else None
 
-        weather_pipeline = WeatherObservationPipeline(self.store)
-        try:
-            weather_observations = weather_pipeline.collect(farm_id)
-        except Exception:
-            logger.warning("Weather pipeline raised unexpectedly for farm '%s'. Continuing without weather.", farm_id)
-            weather_observations = []
-        for observation in weather_observations:
-            self.store.record_observation(observation)
-
         decision = self._build_decision(
-            farm_id=farm_id,
+            context=context,
             herd_id=current_herd.id if current_herd else None,
             current_paddock_id=current_paddock_id,
         )
@@ -170,8 +211,8 @@ class MorningBriefAssembler:
             highlights.append(
                 f"{current_herd.species.title()} herd of {current_herd.count} is currently in {decision.source_paddock_id or current_paddock_id or 'an unknown paddock'}."
             )
-        if weather_observations:
-            highlights.append(weather_observations[0].content)
+        if context.weather_observations:
+            highlights.append(context.weather_observations[0].content)
         highlights.extend(decision.reasoning[:2])
 
         if decision.action == "MOVE":

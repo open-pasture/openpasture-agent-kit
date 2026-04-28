@@ -1,3 +1,3 @@
-"""openPasture Hermes plugin package."""
+"""Agent kit for the openPasture farm operating toolkit."""
 
-__all__ = ["plugin"]
+__all__ = ["context", "plugin", "toolkit"]

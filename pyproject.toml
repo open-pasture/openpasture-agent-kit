@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openpasture"
+name = "openpasture-agent-kit"
 version = "0.1.0-alpha"
-description = "Hermes plugin for pasture-raised livestock farm management"
+description = "Agent kit for the openPasture farm operating toolkit"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-only" }
@@ -30,6 +30,9 @@ satellite = [
 cloud = [
   "convex>=0.7.0",
 ]
+mcp = [
+  "mcp>=1.0.0",
+]
 dev = [
   "pytest>=8.2.0",
   "ruff>=0.4.8",
@@ -39,6 +42,7 @@ dev = [
 openpasture = "openpasture.plugin"
 
 [project.scripts]
+openpasture = "openpasture.cli:main"
 openpasture-alpha-validate = "openpasture.validation.alpha:main"
 
 [tool.setuptools]

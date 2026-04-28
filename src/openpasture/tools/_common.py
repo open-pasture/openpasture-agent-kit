@@ -7,7 +7,7 @@ import re
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Any, Callable, Mapping
+from typing import Callable, Mapping
 from uuid import uuid4
 
 from openpasture.domain import GeoPoint, GeoPolygon

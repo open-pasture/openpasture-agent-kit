@@ -2,10 +2,6 @@
 name: pasture-assessment
 description: Assess pasture condition from notes, photos, and imagery.
 version: 1.0.0
-metadata:
-  hermes:
-    category: observation
-    tags: [pasture, observation, ndvi]
 ---
 # Pasture Assessment
 
