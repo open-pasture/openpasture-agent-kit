@@ -100,83 +100,19 @@
     "groups": [
       {
         "group": "Get Started",
-        "pages": [
-          {
-            "page": "index",
-            "icon": "home"
-          },
-          {
-            "page": "quickstart",
-            "icon": "rocket"
-          },
-          {
-            "page": "core-concepts",
-            "icon": "book-open"
-          }
-        ]
+        "pages": ["index", "quickstart", "core-concepts"]
       },
       {
         "group": "Use The Kit",
-        "pages": [
-          {
-            "page": "cli",
-            "icon": "terminal"
-          },
-          {
-            "page": "mcp",
-            "icon": "plug"
-          },
-          {
-            "page": "hermes-adapter",
-            "icon": "cable"
-          },
-          {
-            "page": "skills",
-            "icon": "graduation-cap"
-          },
-          {
-            "page": "knowledge",
-            "icon": "brain"
-          }
-        ]
+        "pages": ["cli", "mcp", "hermes-adapter", "skills", "knowledge"]
       },
       {
         "group": "Deploy",
-        "pages": [
-          {
-            "page": "self-hosting",
-            "icon": "server"
-          },
-          {
-            "page": "hosted-cloud",
-            "icon": "cloud"
-          },
-          {
-            "page": "environment-variables",
-            "icon": "settings"
-          },
-          {
-            "page": "troubleshooting",
-            "icon": "circle-help"
-          }
-        ]
+        "pages": ["self-hosting", "hosted-cloud", "environment-variables", "troubleshooting"]
       },
       {
         "group": "Develop",
-        "pages": [
-          {
-            "page": "architecture",
-            "icon": "blocks"
-          },
-          {
-            "page": "contributing",
-            "icon": "git-pull-request"
-          },
-          {
-            "page": "changelog",
-            "icon": "clock"
-          }
-        ]
+        "pages": ["architecture", "contributing", "changelog"]
       }
     ]
   }
