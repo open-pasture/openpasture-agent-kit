@@ -1,0 +1,57 @@
+---
+title: "Contributing"
+description: "How to contribute to the OpenPasture agent kit."
+icon: "git-pull-request"
+---
+
+# Contributing
+
+OpenPasture is open source under AGPL-3.0-only. Contributions that help any agent
+operate a pasture-based livestock farm are welcome.
+
+## Before you start
+
+Read these files in the repo to understand the voice and boundaries:
+
+1. `SOUL.md` — the agent's identity and operating philosophy.
+2. `docs/voice-and-boundaries.md` — tone, messaging, and product boundaries.
+3. `docs/vision.md` — product thesis and mission.
+4. `docs/architecture.md` — how the kit separates behavior from connectors.
+5. `AGENTS.md` — rules for coding agents working on the repo.
+
+## Where to build
+
+- **Farm behavior, tools, skills, knowledge, and connectors** belong in this repo.
+- **Hosting, auth, billing, and dashboard** belong in the hosted cloud product.
+- **Marketing copy and positioning** belong on the website.
+
+If a feature helps a self-hosted farmer run the agent, build it here. If it only
+matters for the managed product, it belongs elsewhere.
+
+## Voice rules
+
+- Speak plainly, in a farmer-to-farmer tone.
+- Prefer clear reasoning over technical flourish.
+- Keep the farmer in charge — avoid copy that implies autonomous control.
+- When uncertainty matters, ask for the most useful observation.
+
+## Running tests
+
+```bash
+uv run --python 3.11 pytest
+uv run --python 3.11 openpasture-alpha-validate automated
+```
+
+## Docs changes
+
+From the `docs-site/` directory:
+
+```bash
+npx mint@latest dev        # local preview
+npx mint@latest broken-links  # check for broken links
+```
+
+## Licensing
+
+The public agent kit is AGPL-3.0-only. Do not make broader licensing claims unless
+the license files agree. If you find a conflict, flag it in a PR.

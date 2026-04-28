@@ -1,8 +1,8 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "willow",
+  "theme": "maple",
   "name": "OpenPasture",
-  "description": "OpenPasture docs for the public agent kit, hosted cloud boundary, and self-hosted farm workflows.",
+  "description": "The open-source agent kit for pasture-based livestock management.",
   "colors": {
     "primary": "#4a6a2e",
     "light": "#5a7a38",
@@ -11,68 +11,171 @@
   "appearance": {
     "default": "system"
   },
+  "fonts": {
+    "heading": {
+      "family": "Libre Baskerville"
+    },
+    "body": {
+      "family": "JetBrains Mono",
+      "weight": 400
+    }
+  },
   "icons": {
     "library": "lucide"
+  },
+  "background": {
+    "decoration": "grid"
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "github-dark"
+      }
+    }
+  },
+  "banner": {
+    "content": "OpenPasture is in public beta. [Join the waitlist](https://openpasture.com) or [view source on GitHub](https://github.com/open-pasture/openpasture-agent-kit).",
+    "dismissible": true
   },
   "navbar": {
     "links": [
       {
-        "label": "Marketing site",
+        "type": "github",
+        "href": "https://github.com/open-pasture/openpasture-agent-kit"
+      },
+      {
+        "label": "Website",
         "href": "https://openpasture.com"
       }
-    ]
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "/quickstart"
+    }
   },
   "footer": {
+    "socials": {
+      "github": "https://github.com/open-pasture/openpasture-agent-kit",
+      "x": "https://x.com/openpasture"
+    },
     "links": [
       {
-        "header": "Source",
+        "header": "Product",
         "items": [
-          {
-            "label": "Agent kit",
-            "href": "https://github.com/open-pasture/openpasture-agent-kit"
-          }
+          { "label": "Quickstart", "href": "/quickstart" },
+          { "label": "Hosted Cloud", "href": "https://openpasture.com" },
+          { "label": "Pricing", "href": "https://openpasture.com/pricing" }
+        ]
+      },
+      {
+        "header": "Community",
+        "items": [
+          { "label": "GitHub", "href": "https://github.com/open-pasture/openpasture-agent-kit" },
+          { "label": "Contributing", "href": "/contributing" }
         ]
       }
     ]
+  },
+  "contextual": {
+    "options": ["copy", "chatgpt", "claude", "cursor"],
+    "display": "header"
   },
   "search": {
     "prompt": "Search OpenPasture docs..."
   },
+  "redirects": [
+    { "source": "/introduction", "destination": "/" },
+    { "source": "/installation", "destination": "/quickstart" },
+    { "source": "/environment", "destination": "/environment-variables" },
+    { "source": "/reference/cli/overview", "destination": "/cli" },
+    { "source": "/reference/connectors/mcp", "destination": "/mcp" },
+    { "source": "/configuration/environment", "destination": "/environment-variables" },
+    { "source": "/configuration/storage", "destination": "/architecture" },
+    { "source": "/developer-guidance", "destination": "/contributing" }
+  ],
   "navigation": {
     "groups": [
       {
-        "group": "Start Here",
+        "group": "Get Started",
         "pages": [
-          "index",
-          "quickstart",
-          "core-concepts"
+          {
+            "page": "index",
+            "icon": "home"
+          },
+          {
+            "page": "quickstart",
+            "icon": "rocket"
+          },
+          {
+            "page": "core-concepts",
+            "icon": "book-open"
+          }
         ]
       },
       {
-        "group": "Run The Kit",
+        "group": "Use The Kit",
         "pages": [
-          "cli",
-          "mcp",
-          "hermes-adapter",
-          "skills",
-          "knowledge"
+          {
+            "page": "cli",
+            "icon": "terminal"
+          },
+          {
+            "page": "mcp",
+            "icon": "plug"
+          },
+          {
+            "page": "hermes-adapter",
+            "icon": "cable"
+          },
+          {
+            "page": "skills",
+            "icon": "graduation-cap"
+          },
+          {
+            "page": "knowledge",
+            "icon": "brain"
+          }
         ]
       },
       {
-        "group": "Deploy And Operate",
+        "group": "Deploy",
         "pages": [
-          "self-hosting",
-          "hosted-cloud",
-          "environment-variables",
-          "troubleshooting"
+          {
+            "page": "self-hosting",
+            "icon": "server"
+          },
+          {
+            "page": "hosted-cloud",
+            "icon": "cloud"
+          },
+          {
+            "page": "environment-variables",
+            "icon": "settings"
+          },
+          {
+            "page": "troubleshooting",
+            "icon": "circle-help"
+          }
         ]
       },
       {
-        "group": "Build With OpenPasture",
+        "group": "Develop",
         "pages": [
-          "architecture",
-          "developer-guidance",
-          "changelog"
+          {
+            "page": "architecture",
+            "icon": "blocks"
+          },
+          {
+            "page": "contributing",
+            "icon": "git-pull-request"
+          },
+          {
+            "page": "changelog",
+            "icon": "clock"
+          }
         ]
       }
     ]

@@ -1,55 +1,50 @@
 ---
 title: "Hosted Cloud"
-description: "How the hosted OpenPasture product should wrap the public agent kit."
+description: "The managed hosted product for farmers who want OpenPasture without self-hosting."
+icon: "cloud"
 ---
 
 # Hosted Cloud
 
-The hosted OpenPasture product is a managed wrapper around the public agent kit.
-It is the revenue product, but it should not replace the self-hostable farm
-behavior.
+Don't want to self-host? The hosted OpenPasture product wraps the open-source agent
+kit with managed infrastructure so you can get started without running anything locally.
 
-## Cloud Responsibilities
+<Info>
+  The hosted product is in beta. [Join the waitlist at openpasture.com →](https://openpasture.com)
+</Info>
 
-The cloud repo owns:
+## What the hosted product adds
 
-- account and tenant management,
-- authentication and authorization,
-- billing and subscriptions,
-- hosted provisioning,
-- hosted storage, sync, backups, and recovery,
-- proprietary dashboard and admin UI,
-- support workflows and hosted operations.
+| Capability | Agent Kit (OSS) | Hosted Cloud |
+| --- | --- | --- |
+| Farm tools, skills, knowledge | Included | Included |
+| Local SQLite storage | Included | Managed for you |
+| CLI, MCP, Hermes connectors | Included | Included |
+| Account management and auth | — | Included |
+| Provisioned agent container | — | Included |
+| Data sync and backup | — | Included |
+| Dashboard UI | — | Included |
+| Support | Community | Included |
 
-## Agent Kit Responsibilities
+## How it works
 
-The public agent kit keeps owning:
+When you sign up, the hosted product provisions a dedicated agent container with
+your own data volume. Your farm state stays isolated. The web dashboard reads
+synced data so you can check briefs, observations, and recommendations from a browser.
 
-- farm onboarding primitives,
-- paddock and herd state,
-- observation recording,
-- movement recommendation logic,
-- morning brief generation,
-- knowledge retrieval and ingestion,
-- connector surfaces and local validation.
+The core farm intelligence — tools, skills, knowledge, and recommendations — comes
+from the same open-source agent kit documented on this site. The hosted product adds
+the infrastructure, not the reasoning.
 
-## Current Hosted Direction
+## Pricing
 
-The current plan starts with a simple hosted runtime:
+The agent kit is free and open source. The hosted cloud is free during beta, with
+published pricing at launch.
 
-- one farmer or tenant per managed runtime,
-- SQLite and Chroma on persistent storage for the early pilot,
-- Convex used by the hosted web app for product state,
-- a later move toward Convex-backed farm storage for larger hosted rollouts.
+[See pricing →](https://openpasture.com/pricing)
 
-For 50-farmer hosted work, the roadmap points toward a real Convex
-`FarmStore` implementation while keeping SQLite as the default OSS backend.
+## Self-hosting instead
 
-## Guardrail
-
-If a feature is required for a self-hosted farmer to run the agent, build it in
-the agent kit. If it is about hosting, monetization, managed UX, internal ops,
-or support, build it in the cloud repo.
-
-Source docs: `docs/cloud-boundary.md`, `docs/cloud-handoff.md`, and
-`docs/hosted-convex-roadmap.md`.
+If you prefer to run your own setup, the [Self-Hosting](/self-hosting) guide covers
+everything you need to get started with SQLite, local scheduling, and your preferred
+agent surface.

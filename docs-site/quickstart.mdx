@@ -1,40 +1,47 @@
 ---
 title: "Quickstart"
-description: "Install the OpenPasture agent kit and run the first farm workflow."
+description: "Install the OpenPasture agent kit and run your first farm workflow."
+icon: "rocket"
 ---
 
 # Quickstart
 
-Use this path when you want a local self-hosted test of the agent kit.
+Get a local farm running in under five minutes.
 
 ## Requirements
 
 - Python 3.11+
-- An LLM provider key for the agent runtime you use
-- Optional: Hermes if you want the Hermes adapter
+- An LLM provider key for your agent runtime
+- Optional: Hermes for the Hermes adapter
 - Optional: `FIRECRAWL_API_KEY` for external web knowledge ingestion
 
 ## Install
 
-From the agent kit repo:
+<Steps>
+  <Step title="Install Hermes (optional)">
+    Only needed if you plan to use the Hermes adapter.
 
-```bash
-pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
-pip install -e .
-```
+    ```bash
+    pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
+    ```
+  </Step>
+  <Step title="Install the agent kit">
+    ```bash
+    pip install -e .
+    ```
+  </Step>
+  <Step title="Configure your environment">
+    ```bash
+    export OPENPASTURE_STORE=sqlite
+    export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
+    export OPENPASTURE_BRIEF_TIME="06:00"
+    ```
 
-Recommended local settings:
+    Add `FIRECRAWL_API_KEY` only if you want external knowledge ingestion.
+  </Step>
+</Steps>
 
-```bash
-export OPENPASTURE_STORE=sqlite
-export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
-export OPENPASTURE_BRIEF_TIME="06:00"
-```
-
-Add `FIRECRAWL_API_KEY` only if you want the knowledge-ingestion workflow to
-search and read outside sources.
-
-## First Farm
+## First farm
 
 List the available tools:
 
@@ -48,19 +55,28 @@ Create a simple farm:
 openpasture tool run setup_initial_farm --json '{"name":"Willow Creek","timezone":"America/Chicago","herd":{"id":"herd_1","species":"cattle","count":28},"paddocks":[{"id":"paddock_home","name":"Home","status":"grazing"}]}'
 ```
 
-Generate the first brief:
+Generate the first morning brief:
 
 ```bash
 openpasture tool run generate_morning_brief --json '{}'
 ```
 
-The brief should return a practical recommendation: `MOVE`, `STAY`, or
-`NEEDS_INFO`, with the reasoning visible enough for a farmer to judge.
+The brief returns a practical recommendation — `MOVE`, `STAY`, or `NEEDS_INFO` — with
+reasoning visible enough for a farmer to judge.
 
-## Next Steps
+## Next steps
 
-- Use [CLI](/cli) for command details.
-- Use [MCP](/mcp) to expose the kit to MCP-capable clients.
-- Use [Hermes Adapter](/hermes-adapter) if you are validating the current Hermes
-  path.
-- Use [Knowledge](/knowledge) when adding curated practitioner lessons.
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/cli">
+    Full command reference for the openpasture CLI.
+  </Card>
+  <Card title="MCP Connector" icon="plug" href="/mcp">
+    Expose the kit to Claude, ChatGPT, Cursor, or any MCP client.
+  </Card>
+  <Card title="Hermes Adapter" icon="cable" href="/hermes-adapter">
+    Use the validated Hermes integration.
+  </Card>
+  <Card title="Knowledge" icon="brain" href="/knowledge">
+    Add curated practitioner lessons to the knowledge base.
+  </Card>
+</CardGroup>

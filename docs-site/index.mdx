@@ -1,48 +1,89 @@
 ---
-title: "OpenPasture Docs"
-description: "A practical guide to the OpenPasture agent kit, hosted cloud boundary, and self-hosted farm workflows."
+title: "OpenPasture"
+description: "The open-source agent kit for pasture-based livestock management. Give any AI agent the tools, knowledge, and skills to help manage a farm."
+mode: "wide"
 ---
 
-# OpenPasture Docs
+# OpenPasture Agent Kit
 
-OpenPasture helps pasture-based livestock farmers use capable agents without
-handing the farm over to them.
+Give any AI agent the tools, knowledge, and skills to help manage a pasture-based
+livestock farm — without handing the farm over to it.
 
-The public agent kit gives an agent the parts it needs to be useful on a farm:
-tools, skills, farm state, curated grazing knowledge, and connector surfaces for
-CLI, MCP, and Hermes. The farmer still makes the call. The agent helps gather
-context, explain tradeoffs, and ask for the next observation when the answer is
-not clear.
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install the kit and run your first farm workflow in minutes.
+  </Card>
+  <Card title="Core Concepts" icon="book-open" href="/core-concepts">
+    Farms, paddocks, herds, observations, and the daily MOVE / STAY / NEEDS_INFO loop.
+  </Card>
+  <Card title="Self-Hosting" icon="server" href="/self-hosting">
+    Run OpenPasture locally with SQLite and your preferred agent.
+  </Card>
+</CardGroup>
 
-## The Three Repos
+## What the kit provides
 
-OpenPasture has three active repos with different jobs.
+<CardGroup cols={2}>
+  <Card title="Executable tools" icon="wrench">
+    Farm setup, observation recording, movement recommendations, morning briefs, knowledge search — all callable from CLI, MCP, or Hermes.
+  </Card>
+  <Card title="Portable skills" icon="graduation-cap">
+    Operational runbooks that teach an agent how to onboard a farm, assess pasture, plan rotations, and ingest knowledge.
+  </Card>
+  <Card title="Curated knowledge" icon="brain">
+    Structured lessons from trusted practitioners like Greg Judy, Joel Salatin, and Richard Perkins — applied to your specific land and conditions.
+  </Card>
+  <Card title="Any agent surface" icon="plug">
+    Works through CLI, MCP (Claude, ChatGPT, Cursor), Hermes, or any future connector. Your farm data travels with you.
+  </Card>
+</CardGroup>
 
-| Repo | Role |
-| --- | --- |
-| `openpasture-agent-kit` | Public open-core agent kit and canonical source for voice, mission, farm behavior, docs, skills, and connectors. |
-| `openpasture-cloud` | Hosted revenue product for accounts, provisioning, auth, dashboard, sync, billing, and support. |
-| `openpasture-web` | Closed marketing site for public positioning, pricing, and lead capture. |
+## The daily loop
 
-The split matters. If behavior helps any agent operate a pasture-based livestock
-farm, it belongs in the agent kit first. If it is about hosting, account
-management, billing, or proprietary UI, it belongs in the cloud product. If it is
-public positioning, it belongs on the marketing site.
+Every day, the system helps answer four questions:
 
-## What To Read First
+<Steps>
+  <Step title="What is true about the farm right now?">
+    Observations, weather, satellite data, and stored farm state assemble the current picture.
+  </Step>
+  <Step title="Should the herd MOVE, STAY, or does the agent NEEDS_INFO?">
+    The morning brief produces a practical recommendation with reasoning.
+  </Step>
+  <Step title="Why does that recommendation make sense?">
+    Every recommendation includes the data sources, knowledge entries, and assumptions behind it.
+  </Step>
+  <Step title="What single observation would reduce uncertainty most?">
+    When the answer is not clear, the agent asks for the one thing that would change the call.
+  </Step>
+</Steps>
 
-- Start with [Quickstart](/quickstart) if you want to run the kit.
-- Read [Core Concepts](/core-concepts) if you want the mental model.
-- Read [Self-Hosting](/self-hosting) if you want a local farm setup.
-- Read [Hosted Cloud](/hosted-cloud) if you are working on the managed product.
-- Read [Developer Guidance](/developer-guidance) before changing behavior or copy.
+## Connect any agent
 
-## Voice
+OpenPasture is not locked to one AI. It is the portable farm operating layer that makes
+any capable agent useful on your specific operation.
 
-OpenPasture should sound plain, practical, and farmer-to-farmer. It should say
-what it knows, what it assumes, and what it still needs. It should never pretend
-to control land, livestock, hardware, or management decisions that remain with
-the farmer.
+<CardGroup cols={3}>
+  <Card title="CLI" icon="terminal" href="/cli">
+    JSON-in, JSON-out interface for agents, scripts, and cron.
+  </Card>
+  <Card title="MCP" icon="plug" href="/mcp">
+    Expose tools and skills to Claude, ChatGPT, Cursor, or any MCP client.
+  </Card>
+  <Card title="Hermes" icon="cable" href="/hermes-adapter">
+    Validated adapter for the Hermes agent runtime.
+  </Card>
+</CardGroup>
 
-Source docs: `SOUL.md`, `docs/voice-and-boundaries.md`, `docs/vision.md`, and
-`docs/cloud-boundary.md`.
+## Philosophy
+
+- The farmer remains the operator. The agent extends attention, memory, and execution.
+- The land is the feedback mechanism.
+- Good grazing is contextual, not formulaic.
+- Observation is scarce — direct it carefully.
+- Leave room for uncertainty rather than pretending precision.
+
+<Info>
+  OpenPasture is licensed AGPL-3.0-only. The hosted cloud product wraps the open
+  core with managed infrastructure, auth, and support.
+  [Learn more about the hosted option →](https://openpasture.com)
+</Info>
