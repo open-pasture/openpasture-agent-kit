@@ -1,0 +1,54 @@
+---
+description: Rules for editing the Mintlify docs site under docs-site/
+globs:
+  - docs-site/**
+alwaysApply: false
+---
+
+# Mintlify Docs Site Rules
+
+When editing files in `docs-site/`:
+
+## docs.json navigation
+
+- Navigation page entries MUST be plain strings, not objects.
+  - Correct: `"pages": ["quickstart", "cli", "mcp"]`
+  - Wrong: `"pages": [{ "page": "quickstart", "icon": "rocket" }]`
+- Page icons go in each `.mdx` file's YAML frontmatter (`icon: "rocket"`), not in `docs.json`.
+- The `navigation` object uses `groups` with `group` + `pages` arrays. Do not invent keys like `products`, `versions`, `tabs`, or `languages` unless explicitly needed.
+
+## Special files
+
+- The AI assistant file MUST be named `Assistant.md` (capital A). Mintlify will not detect `assistant.md`.
+- The config file MUST be `docs.json` (not `mint.json`).
+
+## Reserved routes
+
+- `/mcp` is reserved by Mintlify's built-in MCP server. Do NOT name a docs page `mcp.mdx` — it will be hijacked by the MCP endpoint. Use `mcp-connector.mdx` instead.
+- Check Mintlify docs for other reserved routes before creating new page filenames.
+
+## Content scope
+
+- This docs site is for the public OSS agent kit only.
+- Do not document internal cloud repo code, web repo code, or multi-repo architecture.
+- The hosted cloud page should only explain what the hosted product adds on top of the OSS kit.
+- All copy must follow the OpenPasture voice: plain, practical, farmer-to-farmer, uncertainty-aware, no overclaimed autonomy.
+
+## Validation
+
+Always run before committing docs-site changes:
+
+```bash
+cd docs-site
+python3 -m json.tool docs.json > /dev/null  # JSON syntax
+npx mint@latest broken-links                  # link check
+```
+
+## Available Mintlify features
+
+- Themes: `mint`, `maple`, `palm`, `willow`, `linden`, `almond`, `aspen`, `sequoia`, `luma`
+- Page frontmatter: `title`, `description`, `icon`, `sidebarTitle`, `tag`, `mode` (`wide`, `custom`, `frame`, `center`)
+- MDX components: `Card`, `CardGroup`, `Steps`, `Step`, `Info`, `Warning`, `Tip`, `Note`, `Tabs`, `Tab`, `Accordion`, `AccordionGroup`
+- Background decorations: `gradient`, `grid`, `windows`
+- Icon libraries: `lucide` (current), `fontawesome`, `tabler`
+- Code block themes: any Shiki theme name, or `{ "light": "...", "dark": "..." }`
