@@ -58,7 +58,14 @@ def build_hosted_app() -> ASGIApp:
     """Build the Railway-hosted MCP ASGI application."""
 
     security = _no_rebind_security()
-    server = build_mcp_server()
+
+    # v1.x: transport_security on FastMCP constructor
+    # v2.x: transport_security on streamable_http_app()
+    try:
+        server = build_mcp_server(transport_security=security) if security else build_mcp_server()
+    except TypeError:
+        server = build_mcp_server()
+
     mcp_app = _streamable_http_app(server, transport_security=security)
     tenant_app = APIKeyTenantMiddleware(mcp_app)
     return HealthCheckApp(tenant_app)
