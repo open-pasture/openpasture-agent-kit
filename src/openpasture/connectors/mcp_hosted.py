@@ -42,7 +42,17 @@ def _streamable_http_app(server: Any) -> ASGIApp:
 def build_hosted_app() -> ASGIApp:
     """Build the Railway-hosted MCP ASGI application."""
 
-    server = build_mcp_server()
+    try:
+        from mcp.server.transport_security import TransportSecuritySettings
+        security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    except ImportError:
+        security = None
+
+    settings: dict[str, Any] = {}
+    if security is not None:
+        settings["transport_security"] = security
+
+    server = build_mcp_server(**settings)
     mcp_app = _streamable_http_app(server)
     tenant_app = APIKeyTenantMiddleware(mcp_app)
     return HealthCheckApp(tenant_app)
