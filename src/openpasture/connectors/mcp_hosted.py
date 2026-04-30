@@ -28,32 +28,38 @@ class HealthCheckApp:
         await self.app(scope, receive, send)
 
 
-def _streamable_http_app(server: Any) -> ASGIApp:
+def _no_rebind_security() -> Any:
+    """Disable MCP SDK DNS rebinding protection for cloud deployments."""
     try:
-        app = server.streamable_http_app()
+        from mcp.server.transport_security import TransportSecuritySettings
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    except ImportError:
+        return None
+
+
+def _streamable_http_app(server: Any, transport_security: Any = None) -> ASGIApp:
+    try:
+        method = server.streamable_http_app
     except AttributeError as exc:
         raise RuntimeError(
             "The hosted openPasture MCP server requires an MCP FastMCP version "
             "with streamable_http_app() support."
         ) from exc
-    return app
+
+    if transport_security is not None:
+        try:
+            return method(transport_security=transport_security)
+        except TypeError:
+            pass
+    return method()
 
 
 def build_hosted_app() -> ASGIApp:
     """Build the Railway-hosted MCP ASGI application."""
 
-    try:
-        from mcp.server.transport_security import TransportSecuritySettings
-        security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
-    except ImportError:
-        security = None
-
-    settings: dict[str, Any] = {}
-    if security is not None:
-        settings["transport_security"] = security
-
-    server = build_mcp_server(**settings)
-    mcp_app = _streamable_http_app(server)
+    security = _no_rebind_security()
+    server = build_mcp_server()
+    mcp_app = _streamable_http_app(server, transport_security=security)
     tenant_app = APIKeyTenantMiddleware(mcp_app)
     return HealthCheckApp(tenant_app)
 
