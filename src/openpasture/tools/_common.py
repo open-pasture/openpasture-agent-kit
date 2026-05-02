@@ -10,7 +10,7 @@ from functools import wraps
 from typing import Callable, Mapping
 from uuid import uuid4
 
-from openpasture.domain import GeoPoint, GeoPolygon
+from openpasture.domain import GeoFeature, GeoPoint, GeoPolygon
 
 
 def make_id(prefix: str) -> str:
@@ -180,6 +180,16 @@ def parse_geo_polygon(value: object | None) -> GeoPolygon | None:
     raise ValueError("Polygon must be GeoJSON or a list of point mappings.")
 
 
+def parse_geo_feature(value: object | None) -> GeoFeature | None:
+    if value is None:
+        return None
+    if isinstance(value, GeoFeature):
+        return value
+    if isinstance(value, dict):
+        return GeoFeature.from_geojson(value)
+    raise ValueError("Land-unit geometry must be a GeoJSON Feature, Polygon, or MultiPolygon.")
+
+
 def serialize_value(value: object) -> object:
     if value is None:
         return None
@@ -190,6 +200,8 @@ def serialize_value(value: object) -> object:
     if isinstance(value, GeoPoint):
         return value.to_geojson()
     if isinstance(value, GeoPolygon):
+        return value.to_geojson()
+    if isinstance(value, GeoFeature):
         return value.to_geojson()
     if is_dataclass(value):
         return {field.name: serialize_value(getattr(value, field.name)) for field in fields(value)}

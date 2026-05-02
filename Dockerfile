@@ -13,4 +13,4 @@ ENV OPENPASTURE_STORE=sqlite
 ENV OPENPASTURE_HOSTED_DATA_DIR=/data/openpasture
 ENV OPENPASTURE_BRIEF_TIME=06:00
 EXPOSE 8000
-CMD ["openpasture-mcp-hosted"]
+CMD ["sh", "-c", "${OPENPASTURE_START_COMMAND:-openpasture-mcp-hosted}"]

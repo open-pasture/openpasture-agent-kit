@@ -19,8 +19,9 @@ Treat onboarding as a special workflow, not the normal daily operating mode.
 4. Set the herd's current paddock before generating the first morning brief.
 5. Accept flexible geospatial input such as screenshots, rough polygons, landmarks, and map clues.
 6. Convert those inputs into structured farm and paddock geometry when possible.
-7. If geometry is still uncertain, preserve the remaining location clues in onboarding notes rather than inventing precise coordinates.
-8. After setup is complete, switch back to normal daily operations and keep setup tools in the background.
+7. When map screenshots, survey sketches, or farmer-drawn boxes are involved, load the `geo-onboarding` skill and persist draft boundaries with `save_geo_onboarding_draft`.
+8. If geometry is still uncertain, preserve the remaining location clues in onboarding notes rather than inventing precise coordinates.
+9. After setup is complete, switch back to normal daily operations and keep setup tools in the background.
 
 ## Success Criteria
 

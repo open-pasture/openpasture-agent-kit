@@ -86,7 +86,10 @@ Keep the repository split clear:
 ## Domain Glossary
 
 - `Farm`: the root operational unit.
-- `Paddock`: a grazeable land unit within a farm.
+- `Pasture`: a durable field or pasture inside a farm boundary.
+- `Paddock`: a movable or semi-durable grazing subdivision inside a pasture.
+- `Section`: an optional daily or temporary subdivision inside a paddock.
+- `LandUnit`: the shared geospatial primitive behind pastures, paddocks, sections, and related map features.
 - `Herd`: a livestock group under one management decision.
 - `Observation`: any time-bound signal about the farm.
 - `MovementDecision`: the recommendation for the current decision window.

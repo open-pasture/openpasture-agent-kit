@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenPasture onboarding summary</title>
+    <style>
+      :root {
+        color: #e8e8e6;
+        background: #000000;
+        font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        min-height: 100%;
+        background: #000000;
+      }
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+          #000000;
+        background-size: 28px 28px;
+        color: #e8e8e6;
+        font-weight: 300;
+        padding: 18px;
+      }
+      main {
+        display: grid;
+        gap: 2px;
+        justify-items: stretch;
+        margin: 0 auto;
+        max-width: 680px;
+        width: min(100%, 680px);
+      }
+      .card {
+        background: #080a08;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 18px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        color: #ffffff;
+        font-size: clamp(21px, 4vw, 30px);
+        font-weight: 400;
+        letter-spacing: -0.03em;
+        line-height: 1.2;
+      }
+      h2 {
+        margin: 0 0 12px;
+        color: #6a6e68;
+        font-size: 11px;
+        font-weight: 400;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      p {
+        margin: 8px auto 0;
+        max-width: 54ch;
+        line-height: 1.55;
+      }
+      ul {
+        display: inline-grid;
+        gap: 7px;
+        list-style-position: inside;
+        margin: 10px auto 0;
+        padding: 0;
+        text-align: left;
+      }
+      button {
+        border: 0;
+        border-radius: 0;
+        background: #ffffff;
+        color: #000000;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        padding: 11px 14px;
+        text-transform: uppercase;
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.6;
+      }
+      button + button {
+        background: rgba(255, 255, 255, 0.06);
+        color: #e8e8e6;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        justify-content: center;
+        margin-top: 16px;
+      }
+      .muted {
+        color: #8a8e88;
+      }
+      .status-grid {
+        display: grid;
+        gap: 2px;
+        grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+        justify-content: center;
+        margin: 0 auto;
+        max-width: 560px;
+      }
+      .pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 0;
+        border-radius: 0;
+        color: #6a6e68;
+        font-size: 11px;
+        letter-spacing: 0.07em;
+        padding: 12px 10px;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .ready {
+        background: rgba(255, 255, 255, 0.06);
+        color: #ffffff;
+      }
+      .missing {
+        background: rgba(224, 80, 64, 0.14);
+        color: #e05040;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <h1 id="title">OpenPasture farm onboarding</h1>
+        <p id="summary" class="muted">Waiting for onboarding details from ChatGPT.</p>
+      </section>
+      <section class="card">
+        <h2>Setup checklist</h2>
+        <div id="status-grid" class="status-grid"></div>
+      </section>
+      <section class="card">
+        <h2>Captured so far</h2>
+        <div id="captured"></div>
+      </section>
+      <section class="card">
+        <h2>Next useful question</h2>
+        <p id="next-question">Ask for the smallest missing detail.</p>
+        <div class="actions">
+          <button id="ask-button" type="button">Ask this in chat</button>
+          <button id="refresh-button" type="button">Refresh status</button>
+        </div>
+      </section>
+    </main>
+    <script>
+      const fields = ["farm", "timezone", "herd", "paddocks", "current_paddock"];
+      const openai = typeof window !== "undefined" ? window.openai : undefined;
+      let latestQuestion = "";
+      let requestId = 0;
+
+      function asArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+
+      function rpcRequest(method, params) {
+        const id = `openpasture-${++requestId}`;
+        return new Promise((resolve, reject) => {
+          const timeout = window.setTimeout(() => {
+            window.removeEventListener("message", onMessage);
+            reject(new Error(`${method} timed out`));
+          }, 10000);
+
+          function onMessage(event) {
+            if (event.source !== window.parent) return;
+            const message = event.data;
+            if (!message || message.jsonrpc !== "2.0" || message.id !== id) return;
+            window.clearTimeout(timeout);
+            window.removeEventListener("message", onMessage);
+            if (message.error) {
+              reject(new Error(message.error.message || "Host request failed"));
+              return;
+            }
+            resolve(message.result);
+          }
+
+          window.addEventListener("message", onMessage, { passive: true });
+          window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+        });
+      }
+
+      function render(data) {
+        const payload = data && typeof data === "object" ? data : {};
+        const status = payload.onboarding_status || {};
+        const farm = payload.farm || null;
+        const herds = asArray(payload.herds);
+        const paddocks = asArray(payload.paddocks);
+        const observations = asArray(payload.recent_observations);
+        const missing = asArray(payload.missing);
+        latestQuestion = String(payload.next_question || "What is the smallest missing setup detail?");
+
+        document.getElementById("title").textContent = farm?.name
+          ? `${farm.name} onboarding`
+          : "OpenPasture farm onboarding";
+        document.getElementById("summary").textContent = status.complete
+          ? "Core setup is ready. The farmer can add observations or move into daily planning."
+          : "ChatGPT is collecting the basic farm, herd, paddock, and current-location details.";
+
+        const grid = document.getElementById("status-grid");
+        grid.replaceChildren(
+          ...fields.map((field) => {
+            const item = document.createElement("div");
+            const ready = !missing.includes(field);
+            item.className = `pill ${ready ? "ready" : "missing"}`;
+            item.textContent = `${field.replace("_", " ")}: ${ready ? "ready" : "missing"}`;
+            return item;
+          })
+        );
+
+        const captured = document.getElementById("captured");
+        captured.replaceChildren();
+        const list = document.createElement("ul");
+        [
+          `Farm: ${farm?.name || "not set"}`,
+          `Timezone: ${farm?.timezone || "not set"}`,
+          `Herds: ${herds.length}`,
+          `Paddocks: ${paddocks.length}`,
+          `Starting observations: ${observations.length}`,
+        ].forEach((text) => {
+          const item = document.createElement("li");
+          item.textContent = text;
+          list.appendChild(item);
+        });
+        captured.appendChild(list);
+
+        document.getElementById("next-question").textContent = latestQuestion;
+      }
+
+      function receiveHostMessage(event) {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!message || message.jsonrpc !== "2.0") return;
+        if (message.method === "ui/notifications/tool-result") {
+          render(message.params?.structuredContent);
+          return;
+        }
+        if (message.method === "ui/notifications/tool-input") {
+          render(message.params?.structuredContent || message.params);
+        }
+      }
+
+      document.getElementById("ask-button").addEventListener("click", () => {
+        if (!latestQuestion) return;
+        window.parent.postMessage(
+          {
+            jsonrpc: "2.0",
+            method: "ui/message",
+            params: {
+              role: "user",
+              content: [{ type: "text", text: latestQuestion }],
+            },
+          },
+          "*"
+        );
+      });
+
+      document.getElementById("refresh-button").addEventListener("click", async () => {
+        const button = document.getElementById("refresh-button");
+        button.disabled = true;
+        try {
+          const result = await rpcRequest("tools/call", {
+            name: "get_onboarding_status",
+            arguments: {},
+          });
+          render(result?.structuredContent || result);
+        } catch (error) {
+          latestQuestion = "Ask ChatGPT to check OpenPasture onboarding status again.";
+          document.getElementById("next-question").textContent = latestQuestion;
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      rpcRequest("ui/initialize", {})
+        .then((result) => render(result?.toolOutput || result?.structuredContent || openai?.toolOutput))
+        .catch(() => render(openai?.toolOutput));
+
+      window.addEventListener("message", receiveHostMessage, { passive: true });
+      if (openai) {
+        window.addEventListener(
+          "openai:set_globals",
+          (event) => render(event.detail?.globals?.toolOutput || openai.toolOutput),
+          { passive: true }
+        );
+      }
+    </script>
+  </body>
+</html>

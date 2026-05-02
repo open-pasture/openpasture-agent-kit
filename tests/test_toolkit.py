@@ -9,6 +9,8 @@ def test_tool_catalog_contains_core_farm_capabilities():
     names = tool_names()
 
     assert "setup_initial_farm" in names
+    assert "save_geo_onboarding_draft" in names
+    assert "get_farm_geo_state" in names
     assert "get_farm_state" in names
     assert "generate_morning_brief" in names
     assert "search_knowledge" in names
@@ -23,8 +25,10 @@ def test_skills_are_discoverable_as_portable_documents():
 
     assert "morning-brief" in skills
     assert "farm-onboarding" in skills
+    assert "geo-onboarding" in skills
     assert "Hermes" not in skills["morning-brief"].description
     assert "# Morning Brief" in read_skill("morning-brief")
+    assert "Google Maps screenshot" in read_skill("geo-onboarding")
 
 
 def test_mcp_payload_uses_tool_catalog():

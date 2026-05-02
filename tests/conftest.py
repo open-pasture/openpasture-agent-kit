@@ -13,6 +13,8 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENPASTURE_DATA_DIR", str(tmp_path / ".openpasture"))
     monkeypatch.setenv("OPENPASTURE_STORE", "sqlite")
     monkeypatch.setenv("OPENPASTURE_LOAD_SEED", "0")
+    monkeypatch.delenv("CONVEX_SYNC_URL", raising=False)
+    monkeypatch.delenv("CONVEX_SYNC_KEY", raising=False)
     reset_runtime()
     yield
     reset_runtime()

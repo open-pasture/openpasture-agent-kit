@@ -6,9 +6,11 @@ from openpasture.domain import (
     DataPipeline,
     Farm,
     FarmerAction,
+    GeoFeature,
     GeoPoint,
     GeoPolygon,
     Herd,
+    LandUnit,
     MovementDecision,
     Observation,
     Paddock,
@@ -113,6 +115,37 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
     assert updated_plan.status == "approved"
     assert updated_plan.farmer_feedback == "Move them this afternoon."
     assert updated_herd.current_paddock_id == "paddock_2"
+
+
+def test_sqlite_store_round_trips_land_units(tmp_path):
+    store = build_store(tmp_path)
+    farm = Farm(id="farm_geo", name="Duck River", timezone="America/Chicago")
+    pasture_geometry = GeoFeature.from_geojson(
+        {
+            "type": "Polygon",
+            "coordinates": [[[-87.043, 35.646], [-87.038, 35.646], [-87.038, 35.64], [-87.043, 35.64]]],
+        }
+    )
+    pasture = LandUnit(
+        id="pasture_west",
+        farm_id=farm.id,
+        unit_type="pasture",
+        name="West Pasture",
+        geometry=pasture_geometry,
+        confidence=0.55,
+        provenance={"source": "map_screenshot"},
+        warnings=["Estimated from screenshot."],
+    )
+
+    store.create_farm(farm)
+    assert store.upsert_land_unit(pasture) == pasture.id
+
+    loaded = store.get_land_unit(pasture.id)
+    assert loaded is not None
+    assert loaded.geometry.to_geojson()["geometry"]["type"] == "Polygon"
+    assert loaded.provenance == {"source": "map_screenshot"}
+    assert loaded.warnings == ["Estimated from screenshot."]
+    assert store.list_land_units(farm.id, unit_type="pasture")[0].id == pasture.id
 
 
 def test_sqlite_store_round_trips_pipelines_and_farmer_actions(tmp_path):

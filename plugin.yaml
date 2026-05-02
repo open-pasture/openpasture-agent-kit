@@ -8,6 +8,11 @@ provides_tools:
   - setup_initial_farm
   - register_farm
   - add_paddock
+  - save_geo_onboarding_draft
+  - upsert_land_unit
+  - validate_land_unit_geometry
+  - get_farm_geo_state
+  - get_farm_map_link
   - get_farm_state
   - set_herd_position
   - record_observation

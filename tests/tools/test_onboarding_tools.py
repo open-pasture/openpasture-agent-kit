@@ -143,6 +143,27 @@ def test_setup_initial_farm_captures_flexible_geo_context_and_initial_position()
     assert "Onboarding paddock boundary context" in result["paddocks"][0]["notes"]
 
 
+def test_setup_initial_farm_preserves_chatgpt_extracted_maps_location():
+    initialize()
+
+    result = json.loads(
+        handle_setup_initial_farm(
+            {
+                "name": "Maps Pin Farm",
+                "timezone": "America/Chicago",
+                "location": {"type": "Point", "coordinates": [-95.2345, 36.4567]},
+                "location_hint": "Google Maps screenshot showed a dropped pin at 36.4567, -95.2345.",
+                "herd": {"id": "herd_maps", "species": "cattle", "count": 18},
+                "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+            }
+        )
+    )
+
+    assert result["farm"]["location"] == {"type": "Point", "coordinates": [-95.2345, 36.4567]}
+    assert "Google Maps screenshot" in result["farm"]["notes"]
+    assert result["herds"][0]["current_paddock_id"] == "paddock_home"
+
+
 def test_setup_initial_farm_accepts_top_level_herd_aliases_and_loose_count():
     initialize()
 

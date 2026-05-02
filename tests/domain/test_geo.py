@@ -1,4 +1,4 @@
-from openpasture.domain import BoundingBox, GeoPoint, GeoPolygon
+from openpasture.domain import BoundingBox, GeoFeature, GeoPoint, GeoPolygon
 
 
 def test_geo_point_round_trip_geojson():
@@ -28,3 +28,24 @@ def test_geo_polygon_round_trip_geojson_and_bbox():
     assert restored.coordinates == polygon.coordinates
     assert bbox.min_longitude == -95.1
     assert bbox.max_latitude == 36.1
+
+
+def test_geo_feature_normalizes_polygon_and_computes_metadata():
+    feature = GeoFeature.from_geojson(
+        {
+            "type": "Feature",
+            "properties": {"source": "map_screenshot"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[-87.04, 35.64], [-87.03, 35.64], [-87.03, 35.63]]],
+            },
+        }
+    )
+
+    payload = feature.to_geojson()
+    bbox = feature.bbox()
+
+    assert payload["geometry"]["coordinates"][0][0] == payload["geometry"]["coordinates"][0][-1]
+    assert bbox.to_list() == [-87.04, 35.63, -87.03, 35.64]
+    assert feature.area_hectares() > 0
+    assert feature.properties["source"] == "map_screenshot"

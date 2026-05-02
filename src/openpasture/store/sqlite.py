@@ -14,9 +14,11 @@ from openpasture.domain import (
     DataPipeline,
     Farm,
     FarmerAction,
+    GeoFeature,
     GeoPoint,
     GeoPolygon,
     Herd,
+    LandUnit,
     MovementDecision,
     Observation,
     Paddock,
@@ -64,6 +66,14 @@ def _deserialize_point(value: str | None) -> GeoPoint | None:
 
 def _deserialize_polygon(value: str | None) -> GeoPolygon | None:
     return None if not value else GeoPolygon.from_geojson(json.loads(value))
+
+
+def _serialize_geo_feature(feature: GeoFeature | None) -> str | None:
+    return None if feature is None else _json_dumps(feature.to_geojson())
+
+
+def _deserialize_geo_feature(value: str | None) -> GeoFeature | None:
+    return None if not value else GeoFeature.from_geojson(json.loads(value))
 
 
 def _serialize_water_sources(water_sources: list[WaterSource]) -> str:
@@ -144,6 +154,34 @@ class SQLiteStore:
                     FOREIGN KEY(farm_id) REFERENCES farms(id)
                 )
                 """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS land_units (
+                    id TEXT PRIMARY KEY,
+                    farm_id TEXT NOT NULL,
+                    parent_id TEXT,
+                    unit_type TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    geometry_geojson TEXT NOT NULL,
+                    area_hectares REAL,
+                    confidence REAL NOT NULL,
+                    provenance TEXT NOT NULL,
+                    geometry_version INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    notes TEXT NOT NULL,
+                    warnings TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(farm_id) REFERENCES farms(id)
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_land_units_farm_type ON land_units(farm_id, unit_type)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_land_units_parent ON land_units(parent_id)"
             )
             connection.execute(
                 """
@@ -275,6 +313,28 @@ class SQLiteStore:
             area_hectares=row["area_hectares"],
             notes=row["notes"],
             status=row["status"],
+        )
+
+    def _land_unit_from_row(self, row: sqlite3.Row) -> LandUnit:
+        feature = _deserialize_geo_feature(row["geometry_geojson"])
+        if feature is None:
+            raise ValueError("Land unit geometry cannot be null.")
+        return LandUnit(
+            id=row["id"],
+            farm_id=row["farm_id"],
+            parent_id=row["parent_id"],
+            unit_type=row["unit_type"],
+            name=row["name"],
+            geometry=feature,
+            area_hectares=row["area_hectares"],
+            confidence=row["confidence"],
+            provenance=_json_loads(row["provenance"], {}),
+            geometry_version=row["geometry_version"],
+            status=row["status"],
+            notes=row["notes"],
+            warnings=_json_loads(row["warnings"], []),
+            created_at=_datetime_from_text(row["created_at"]),
+            updated_at=_datetime_from_text(row["updated_at"]),
         )
 
     def _herd_from_row(self, row: sqlite3.Row) -> Herd:
@@ -486,6 +546,117 @@ class SQLiteStore:
             )
             self._append_farm_reference(connection, paddock.farm_id, "paddock_ids", paddock.id)
         return paddock.id
+
+    def get_land_unit(self, land_unit_id: str) -> LandUnit | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM land_units WHERE id = ?", (land_unit_id,)).fetchone()
+        return None if row is None else self._land_unit_from_row(row)
+
+    def list_land_units(self, farm_id: str, unit_type: str | None = None) -> list[LandUnit]:
+        with self._connect() as connection:
+            if unit_type is None:
+                rows = connection.execute(
+                    "SELECT * FROM land_units WHERE farm_id = ? ORDER BY unit_type ASC, name ASC",
+                    (farm_id,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT * FROM land_units WHERE farm_id = ? AND unit_type = ? ORDER BY name ASC",
+                    (farm_id, unit_type),
+                ).fetchall()
+        return [self._land_unit_from_row(row) for row in rows]
+
+    def upsert_land_unit(self, land_unit: LandUnit) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO land_units (
+                    id, farm_id, parent_id, unit_type, name, geometry_geojson, area_hectares,
+                    confidence, provenance, geometry_version, status, notes, warnings, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    farm_id = excluded.farm_id,
+                    parent_id = excluded.parent_id,
+                    unit_type = excluded.unit_type,
+                    name = excluded.name,
+                    geometry_geojson = excluded.geometry_geojson,
+                    area_hectares = excluded.area_hectares,
+                    confidence = excluded.confidence,
+                    provenance = excluded.provenance,
+                    geometry_version = excluded.geometry_version,
+                    status = excluded.status,
+                    notes = excluded.notes,
+                    warnings = excluded.warnings,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    land_unit.id,
+                    land_unit.farm_id,
+                    land_unit.parent_id,
+                    land_unit.unit_type,
+                    land_unit.name,
+                    _serialize_geo_feature(land_unit.geometry),
+                    land_unit.area_hectares,
+                    land_unit.confidence,
+                    _json_dumps(land_unit.provenance),
+                    land_unit.geometry_version,
+                    land_unit.status,
+                    land_unit.notes,
+                    _json_dumps(land_unit.warnings),
+                    _datetime_to_text(land_unit.created_at),
+                    _datetime_to_text(land_unit.updated_at),
+                ),
+            )
+        return land_unit.id
+
+    def update_land_unit(self, land_unit_id: str, **updates: object) -> None:
+        existing = self.get_land_unit(land_unit_id)
+        if existing is None:
+            raise ValueError(f"Land unit '{land_unit_id}' does not exist.")
+        if not updates:
+            return
+
+        column_map = {
+            "parent_id": "parent_id",
+            "name": "name",
+            "geometry": "geometry_geojson",
+            "area_hectares": "area_hectares",
+            "confidence": "confidence",
+            "provenance": "provenance",
+            "geometry_version": "geometry_version",
+            "status": "status",
+            "notes": "notes",
+            "warnings": "warnings",
+            "updated_at": "updated_at",
+        }
+        assignments: list[str] = []
+        values: list[object] = []
+        for key, value in updates.items():
+            if key not in column_map:
+                continue
+            if key == "geometry":
+                value = _serialize_geo_feature(value if isinstance(value, GeoFeature) else None)
+            elif key == "provenance":
+                value = _json_dumps(value if isinstance(value, dict) else {})
+            elif key == "warnings":
+                value = _json_dumps(value if isinstance(value, list) else [])
+            elif key == "updated_at":
+                value = _datetime_to_text(value) if isinstance(value, datetime) else _datetime_to_text(datetime.utcnow())
+            assignments.append(f"{column_map[key]} = ?")
+            values.append(value)
+
+        if "updated_at" not in updates:
+            assignments.append("updated_at = ?")
+            values.append(_datetime_to_text(datetime.utcnow()))
+
+        if not assignments:
+            return
+        values.append(land_unit_id)
+        with self._connect() as connection:
+            connection.execute(
+                f"UPDATE land_units SET {', '.join(assignments)} WHERE id = ?",
+                tuple(values),
+            )
 
     def create_herd(self, herd: Herd) -> str:
         with self._connect() as connection:

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from openpasture.tools import brief, farm, knowledge, observe, onboarding, pipeline, plan
+from openpasture.tools import brief, farm, geo, knowledge, observe, onboarding, pipeline, plan
 
 ToolHandler = Callable[[dict[str, object]], str]
 
@@ -86,6 +86,54 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         tags=("farm", "paddock", "setup"),
         emoji="🗺️",
         related_skills=("farm-onboarding",),
+    ),
+    ToolSpec(
+        name="save_geo_onboarding_draft",
+        schema=geo.SAVE_GEO_ONBOARDING_DRAFT_SCHEMA,
+        handler=geo.handle_save_geo_onboarding_draft,
+        description=(
+            "Persist an agent-generated farm map draft from screenshot, survey, "
+            "or map-clue interpretation."
+        ),
+        tags=("farm", "geo", "onboarding"),
+        emoji="🗺️",
+        related_skills=("geo-onboarding", "farm-onboarding"),
+    ),
+    ToolSpec(
+        name="upsert_land_unit",
+        schema=geo.UPSERT_LAND_UNIT_SCHEMA,
+        handler=geo.handle_upsert_land_unit,
+        description="Create or update one pasture, paddock, section, or related map unit.",
+        tags=("farm", "geo", "map"),
+        emoji="🧭",
+        related_skills=("geo-onboarding",),
+    ),
+    ToolSpec(
+        name="validate_land_unit_geometry",
+        schema=geo.VALIDATE_LAND_UNIT_GEOMETRY_SCHEMA,
+        handler=geo.handle_validate_land_unit_geometry,
+        description="Normalize and validate GeoJSON geometry without persisting it.",
+        tags=("farm", "geo", "validation"),
+        emoji="📐",
+        related_skills=("geo-onboarding",),
+    ),
+    ToolSpec(
+        name="get_farm_geo_state",
+        schema=geo.GET_FARM_GEO_STATE_SCHEMA,
+        handler=geo.handle_get_farm_geo_state,
+        description="Return farm boundary and nested land units for map rendering.",
+        tags=("farm", "geo", "context"),
+        emoji="🗺️",
+        related_skills=("geo-onboarding",),
+    ),
+    ToolSpec(
+        name="get_farm_map_link",
+        schema=geo.GET_FARM_MAP_LINK_SCHEMA,
+        handler=geo.handle_get_farm_map_link,
+        description="Return the cloud map confirmation link for the active farm.",
+        tags=("farm", "geo", "cloud"),
+        emoji="🔗",
+        related_skills=("geo-onboarding",),
     ),
     ToolSpec(
         name="get_farm_state",

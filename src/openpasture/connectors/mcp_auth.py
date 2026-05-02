@@ -100,13 +100,14 @@ class APIKeyTenantMiddleware:
         return None
 
     async def _resolve_tenant_context_id(self, api_key: str) -> str | None:
+        if self._is_allowed(api_key):
+            return tenant_hash(api_key)
+
         if self.auth_url:
             import asyncio
 
             return await asyncio.to_thread(self._validate_with_cloud, api_key)
 
-        if self._is_allowed(api_key):
-            return tenant_hash(api_key)
         return None
 
     def _tenant_context(self, context_id: str) -> OpenPastureContext:
