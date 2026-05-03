@@ -8,7 +8,11 @@ from datetime import UTC, datetime
 from typing import Any
 from urllib import request as urllib_request
 
-SYNC_TABLE_ORDER = ("farms", "paddocks", "herds", "observations")
+from openpasture.context import get_store
+from openpasture.tools._common import serialize_value
+
+SYNC_TABLE_ORDER = ("farms", "paddocks", "landUnits", "herds", "observations")
+LAND_UNIT_SYNC_TYPES = {"pasture", "paddock", "section", "no_graze_zone", "water_area"}
 
 
 def _now_ms() -> int:
@@ -39,8 +43,67 @@ def _number(value: object) -> float | None:
     return None
 
 
+def _integer(value: object, *, default: int) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return default
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
 def _compact(record: dict[str, object]) -> dict[str, object]:
     return {key: value for key, value in record.items() if value is not None}
+
+
+def _append_land_unit_batches(
+    batches: dict[str, list[dict[str, object]]],
+    summary: dict[str, Any],
+    *,
+    agent_farm_id: str,
+    timestamp: int,
+) -> None:
+    land_units = summary.get("land_units") if isinstance(summary.get("land_units"), list) else []
+    for land_unit in land_units:
+        if not isinstance(land_unit, dict):
+            continue
+        unit_type = _string(land_unit.get("unit_type"))
+        if unit_type not in LAND_UNIT_SYNC_TYPES:
+            continue
+        agent_land_unit_id = _string(land_unit.get("id"))
+        geometry = land_unit.get("geometry")
+        if agent_land_unit_id is None or not isinstance(geometry, dict):
+            continue
+        confidence = _number(land_unit.get("confidence"))
+        batches["landUnits"].append(
+            _compact(
+                {
+                    "agentFarmId": _string(land_unit.get("farm_id")) or agent_farm_id,
+                    "agentLandUnitId": agent_land_unit_id,
+                    "parentId": _string(land_unit.get("parent_id")),
+                    "unitType": unit_type,
+                    "name": _string(land_unit.get("name")) or "Land unit",
+                    "geometry": geometry,
+                    "areaHectares": _number(land_unit.get("area_hectares")),
+                    "confidence": confidence if confidence is not None else 1.0,
+                    "provenance": (
+                        land_unit.get("provenance")
+                        if isinstance(land_unit.get("provenance"), dict)
+                        else {}
+                    ),
+                    "geometryVersion": _integer(land_unit.get("geometry_version"), default=1),
+                    "status": _string(land_unit.get("status")) or "draft",
+                    "notes": _string(land_unit.get("notes")),
+                    "warnings": _string_list(land_unit.get("warnings")),
+                    "syncedAt": timestamp,
+                }
+            )
+        )
 
 
 def build_onboarding_sync_batches(
@@ -74,6 +137,8 @@ def build_onboarding_sync_batches(
             }
         )
     )
+
+    _append_land_unit_batches(batches, summary, agent_farm_id=agent_farm_id, timestamp=timestamp)
 
     paddocks = summary.get("paddocks") if isinstance(summary.get("paddocks"), list) else []
     for paddock in paddocks:
@@ -160,6 +225,45 @@ def build_onboarding_sync_batches(
     ]
 
 
+def build_farm_geo_sync_batches(
+    summary: dict[str, Any],
+    *,
+    synced_at: int | None = None,
+) -> list[dict[str, object]]:
+    """Map farm geo state into Convex /sync batches for the Farm Map read model."""
+
+    farm = summary.get("farm") if isinstance(summary.get("farm"), dict) else None
+    if farm is None:
+        return []
+
+    agent_farm_id = _string(farm.get("id"))
+    if agent_farm_id is None:
+        return []
+
+    timestamp = synced_at or _now_ms()
+    batches: dict[str, list[dict[str, object]]] = {table: [] for table in SYNC_TABLE_ORDER}
+    batches["farms"].append(
+        _compact(
+            {
+                "agentFarmId": agent_farm_id,
+                "name": _string(farm.get("name")) or "OpenPasture farm",
+                "timezone": _string(farm.get("timezone")) or "UTC",
+                "notes": _string(farm.get("notes")),
+                "location": farm.get("location"),
+                "boundary": farm.get("boundary"),
+                "syncedAt": timestamp,
+            }
+        )
+    )
+    _append_land_unit_batches(batches, summary, agent_farm_id=agent_farm_id, timestamp=timestamp)
+
+    return [
+        {"table": table, "records": records}
+        for table, records in batches.items()
+        if records
+    ]
+
+
 def _post_sync_batch(
     sync_url: str,
     tenant_key: str,
@@ -183,15 +287,11 @@ def _post_sync_batch(
         response.read()
 
 
-def sync_onboarding_summary(summary: dict[str, Any]) -> dict[str, object] | None:
-    """Post onboarding state to OpenPasture Cloud when hosted sync is configured."""
-
+def _post_sync_batches(batches: list[dict[str, object]]) -> dict[str, object] | None:
     sync_url = os.environ.get("CONVEX_SYNC_URL", "").strip()
     tenant_key = os.environ.get("CONVEX_SYNC_KEY", "").strip()
     if not sync_url or not tenant_key:
         return None
-
-    batches = build_onboarding_sync_batches(summary)
     if not batches:
         return {"status": "skipped", "reason": "no_farm_state"}
 
@@ -212,3 +312,24 @@ def sync_onboarding_summary(summary: dict[str, Any]) -> dict[str, object] | None
         }
 
     return {"status": "ok", "posted": posted}
+
+
+def sync_onboarding_summary(summary: dict[str, Any]) -> dict[str, object] | None:
+    """Post onboarding state to OpenPasture Cloud when hosted sync is configured."""
+
+    return _post_sync_batches(build_onboarding_sync_batches(summary))
+
+
+def sync_farm_geo_state(farm_id: str) -> dict[str, object] | None:
+    """Post the current farm boundary and land-unit geometry to OpenPasture Cloud."""
+
+    store = get_store()
+    farm = store.get_farm(farm_id)
+    if farm is None:
+        return {"status": "skipped", "reason": "farm_not_found"}
+
+    summary = {
+        "farm": serialize_value(farm),
+        "land_units": serialize_value(store.list_land_units(farm_id)),
+    }
+    return _post_sync_batches(build_farm_geo_sync_batches(summary))
