@@ -175,8 +175,8 @@ def _create_or_load_farm(args: dict[str, object]) -> tuple[Farm, GeoFeature | No
         if farm is None:
             raise ValueError(f"Farm '{farm_id}' does not exist.")
         if boundary_feature is not None:
-            store.update_farm(farm.id, boundary=boundary_feature.to_polygon())
-            farm.boundary = boundary_feature.to_polygon()
+            store.update_farm(farm.id, boundary=boundary_feature)
+            farm.boundary = boundary_feature
         if location := parse_geo_point(args.get("location")):
             store.update_farm(farm.id, location=location)
             farm.location = location
@@ -187,8 +187,8 @@ def _create_or_load_farm(args: dict[str, object]) -> tuple[Farm, GeoFeature | No
     if existing_farms and not bool(args.get("allow_additional_farm")):
         farm = existing_farms[0]
         if boundary_feature is not None:
-            store.update_farm(farm.id, boundary=boundary_feature.to_polygon())
-            farm.boundary = boundary_feature.to_polygon()
+            store.update_farm(farm.id, boundary=boundary_feature)
+            farm.boundary = boundary_feature
         if location := parse_geo_point(args.get("location")):
             store.update_farm(farm.id, location=location)
             farm.location = location
@@ -200,7 +200,7 @@ def _create_or_load_farm(args: dict[str, object]) -> tuple[Farm, GeoFeature | No
         name=require_str(args, "name"),
         timezone=require_str(args, "timezone"),
         location=parse_geo_point(args.get("location")),
-        boundary=boundary_feature.to_polygon() if boundary_feature else None,
+        boundary=boundary_feature,
         notes=_build_notes(args),
         created_at=datetime.utcnow(),
     )

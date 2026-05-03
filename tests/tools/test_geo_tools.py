@@ -97,3 +97,28 @@ def test_save_geo_onboarding_draft_from_google_maps_fixture_facts():
     geo_state = json.loads(handle_get_farm_geo_state({"farm_id": result["farm"]["id"]}))
     assert geo_state["farm"]["location"]["coordinates"] == [-87.038675, 35.642109]
     assert {unit["id"] for unit in geo_state["land_units"]} == {"pasture_west_box", "pasture_east_box"}
+
+
+def test_geo_onboarding_preserves_multipolygon_farm_boundary():
+    result = json.loads(
+        handle_save_geo_onboarding_draft(
+            {
+                "name": "Two Parcel Farm",
+                "timezone": "America/Chicago",
+                "boundary": {
+                    "type": "MultiPolygon",
+                    "coordinates": [
+                        [[[-87.05, 35.65], [-87.04, 35.65], [-87.04, 35.64], [-87.05, 35.65]]],
+                        [[[-87.03, 35.63], [-87.02, 35.63], [-87.02, 35.62], [-87.03, 35.63]]],
+                    ],
+                },
+                "source": "survey",
+            }
+        )
+    )
+
+    assert result["status"] == "ok"
+    assert result["farm"]["boundary"]["geometry"]["type"] == "MultiPolygon"
+
+    geo_state = json.loads(handle_get_farm_geo_state({"farm_id": result["farm"]["id"]}))
+    assert geo_state["farm"]["boundary"]["geometry"]["type"] == "MultiPolygon"

@@ -68,6 +68,10 @@ def _feature(value: object) -> GeoFeature:
     return GeoFeature.from_geojson(value)
 
 
+def _boundary(value: object) -> GeoFeature | None:
+    return GeoFeature.from_geojson(value) if isinstance(value, dict) else None
+
+
 def _water_sources(values: object) -> list[WaterSource]:
     if not isinstance(values, list):
         return []
@@ -154,7 +158,7 @@ class ConvexStore:
             id=str(record["farmId"]),
             name=str(record["name"]),
             timezone=str(record["timezone"]),
-            boundary=_polygon(record.get("boundary")),
+            boundary=_boundary(record.get("boundary")),
             location=_point(record.get("location")),
             paddock_ids=[str(item) for item in record.get("paddockIds", [])],
             herd_ids=[str(item) for item in record.get("herdIds", [])],
@@ -437,7 +441,7 @@ class ConvexStore:
             "notes": "notes",
         }
         for key, value in updates.items():
-            if key == "boundary" and isinstance(value, GeoPolygon):
+            if key == "boundary" and isinstance(value, (GeoFeature, GeoPolygon)):
                 patch["boundary"] = value.to_geojson()
             elif key == "location" and isinstance(value, GeoPoint):
                 patch["location"] = value.to_geojson()

@@ -123,3 +123,24 @@ def test_convex_store_round_trips_core_gis_entities():
 
     store.update_herd_position(herd.id, "pasture_south")
     assert store.get_herds(farm.id)[0].current_paddock_id == "pasture_south"
+
+
+def test_convex_store_round_trips_multipolygon_farm_boundary():
+    store = FakeConvexStore()
+    boundary = GeoFeature.from_geojson(
+        {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [[[-95.2, 36.2], [-95.1, 36.2], [-95.1, 36.3], [-95.2, 36.2]]],
+                [[[-95.0, 36.0], [-94.9, 36.0], [-94.9, 36.1], [-95.0, 36.0]]],
+            ],
+        }
+    )
+    farm = Farm(id="farm_multi", name="Split Creek", timezone="America/Chicago", boundary=boundary)
+
+    assert store.create_farm(farm) == farm.id
+    loaded = store.get_farm(farm.id)
+
+    assert loaded is not None
+    assert loaded.boundary is not None
+    assert loaded.boundary.to_geojson()["geometry"]["type"] == "MultiPolygon"

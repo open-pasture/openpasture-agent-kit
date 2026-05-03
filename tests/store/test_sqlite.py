@@ -148,6 +148,27 @@ def test_sqlite_store_round_trips_land_units(tmp_path):
     assert store.list_land_units(farm.id, unit_type="pasture")[0].id == pasture.id
 
 
+def test_sqlite_store_round_trips_multipolygon_farm_boundary(tmp_path):
+    store = build_store(tmp_path)
+    boundary = GeoFeature.from_geojson(
+        {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [[[-87.05, 35.65], [-87.04, 35.65], [-87.04, 35.64], [-87.05, 35.65]]],
+                [[[-87.03, 35.63], [-87.02, 35.63], [-87.02, 35.62], [-87.03, 35.63]]],
+            ],
+        }
+    )
+    farm = Farm(id="farm_multi", name="Two Parcel Farm", timezone="America/Chicago", boundary=boundary)
+
+    store.create_farm(farm)
+
+    loaded = store.get_farm(farm.id)
+    assert loaded is not None
+    assert loaded.boundary is not None
+    assert loaded.boundary.to_geojson()["geometry"]["type"] == "MultiPolygon"
+
+
 def test_sqlite_store_round_trips_pipelines_and_farmer_actions(tmp_path):
     store = build_store(tmp_path)
     farm = Farm(

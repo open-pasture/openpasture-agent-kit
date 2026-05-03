@@ -76,6 +76,16 @@ def _deserialize_geo_feature(value: str | None) -> GeoFeature | None:
     return None if not value else GeoFeature.from_geojson(json.loads(value))
 
 
+def _serialize_boundary(boundary: GeoFeature | GeoPolygon | None) -> str | None:
+    if boundary is None:
+        return None
+    return _json_dumps(boundary.to_geojson())
+
+
+def _deserialize_boundary(value: str | None) -> GeoFeature | None:
+    return None if not value else GeoFeature.from_geojson(json.loads(value))
+
+
 def _serialize_water_sources(water_sources: list[WaterSource]) -> str:
     payload = []
     for source in water_sources:
@@ -292,7 +302,7 @@ class SQLiteStore:
             id=row["id"],
             name=row["name"],
             timezone=row["timezone"],
-            boundary=_deserialize_polygon(row["boundary_geojson"]),
+            boundary=_deserialize_boundary(row["boundary_geojson"]),
             location=_deserialize_point(row["location_geojson"]),
             paddock_ids=_json_loads(row["paddock_ids"], []),
             herd_ids=_json_loads(row["herd_ids"], []),
@@ -461,7 +471,7 @@ class SQLiteStore:
                     farm.id,
                     farm.name,
                     farm.timezone,
-                    _serialize_polygon(farm.boundary),
+                    _serialize_boundary(farm.boundary),
                     _serialize_point(farm.location),
                     _json_dumps(farm.paddock_ids),
                     _json_dumps(farm.herd_ids),
@@ -494,7 +504,7 @@ class SQLiteStore:
                 continue
             column = column_map[key]
             if key == "boundary":
-                value = _serialize_polygon(value if isinstance(value, GeoPolygon) else None)
+                value = _serialize_boundary(value if isinstance(value, (GeoFeature, GeoPolygon)) else None)
             elif key == "location":
                 value = _serialize_point(value if isinstance(value, GeoPoint) else None)
             elif key in {"paddock_ids", "herd_ids"}:

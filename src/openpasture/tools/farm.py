@@ -12,6 +12,7 @@ from openpasture.tools._common import (
     optional_bool,
     optional_float,
     optional_str,
+    parse_geo_feature,
     parse_loose_int,
     parse_geo_point,
     parse_geo_polygon,
@@ -106,6 +107,15 @@ def _build_farm_notes(args: dict[str, object]) -> str:
     return "\n\n".join(notes)
 
 
+def _parse_farm_boundary(value: object):
+    if value is None:
+        return None
+    try:
+        return parse_geo_feature(value)
+    except ValueError:
+        return parse_geo_polygon(value)
+
+
 def _build_herd_payloads(args: dict[str, object]) -> list[dict[str, object]]:
     herds_payload: list[dict[str, object]] = []
     herd = args.get("herd")
@@ -164,7 +174,7 @@ def handle_register_farm(args: dict[str, object]) -> str:
         id=optional_str(args, "farm_id") or make_id("farm"),
         name=require_str(args, "name"),
         timezone=require_str(args, "timezone"),
-        boundary=parse_geo_polygon(args.get("boundary")),
+        boundary=_parse_farm_boundary(args.get("boundary")),
         location=parse_geo_point(args.get("location")),
         notes=_build_farm_notes(args),
         created_at=datetime.utcnow(),

@@ -95,7 +95,7 @@ class Farm:
     id: str
     name: str
     timezone: str
-    boundary: GeoPolygon | None = None
+    boundary: GeoFeature | GeoPolygon | None = None
     location: GeoPoint | None = None
     paddock_ids: list[str] = field(default_factory=list)
     herd_ids: list[str] = field(default_factory=list)
