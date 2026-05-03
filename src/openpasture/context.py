@@ -67,8 +67,16 @@ class OpenPastureConfig:
             base.seed_dir = Path(config["seed_dir"]).expanduser()
         if isinstance(config.get("store"), str):
             base.store_backend = str(config["store"])
+        if isinstance(config.get("store_backend"), str):
+            base.store_backend = str(config["store_backend"])
         if isinstance(config.get("brief_time"), str):
             base.brief_time = str(config["brief_time"])
+        if isinstance(config.get("convex_url"), str):
+            base.convex_url = str(config["convex_url"])
+        if isinstance(config.get("convex_key"), str):
+            base.convex_key = str(config["convex_key"])
+        if isinstance(config.get("load_seed_mode"), str):
+            base.load_seed_mode = str(config["load_seed_mode"])
         return base
 
 

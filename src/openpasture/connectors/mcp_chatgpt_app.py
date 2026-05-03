@@ -9,7 +9,6 @@ from collections.abc import Callable
 from importlib.resources import files
 from typing import Any
 
-from openpasture.connectors import cloud_sync
 from openpasture.connectors.mcp import _require_fastmcp
 from openpasture.context import initialize, resolve_farm_id
 from openpasture.toolkit import run_tool
@@ -416,13 +415,6 @@ def _summary_from_state(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _attach_cloud_sync(summary: dict[str, Any]) -> dict[str, Any]:
-    sync_result = cloud_sync.sync_onboarding_summary(summary)
-    if sync_result is not None:
-        summary["cloud_sync"] = sync_result
-    return summary
-
-
 def handle_get_onboarding_status(args: dict[str, object] | None = None) -> dict[str, Any]:
     """Return a compact, UI-ready view of the current onboarding state."""
 
@@ -459,7 +451,7 @@ def handle_save_farm_onboarding(args: dict[str, object]) -> dict[str, Any]:
     """Save first-run farm setup through the canonical onboarding tool."""
 
     result = _load_json_tool_result("setup_initial_farm", args)
-    return _attach_cloud_sync(_summary_from_state(result))
+    return _summary_from_state(result)
 
 
 def handle_record_starting_observation(args: dict[str, object]) -> dict[str, Any]:
@@ -467,8 +459,7 @@ def handle_record_starting_observation(args: dict[str, object]) -> dict[str, Any
 
     _load_json_tool_result("record_observation", args)
     farm_id = args.get("farm_id")
-    summary = handle_get_onboarding_status({"farm_id": farm_id} if isinstance(farm_id, str) else {})
-    return _attach_cloud_sync(summary)
+    return handle_get_onboarding_status({"farm_id": farm_id} if isinstance(farm_id, str) else {})
 
 
 def handle_render_onboarding_summary(args: dict[str, object]) -> dict[str, Any]:

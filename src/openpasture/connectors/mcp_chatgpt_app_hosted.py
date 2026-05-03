@@ -10,7 +10,7 @@ from openpasture.connectors.mcp_hosted import HealthCheckApp, _no_rebind_securit
 
 
 def build_hosted_chatgpt_app() -> ASGIApp:
-    """Build the Railway-hosted ChatGPT onboarding app."""
+    """Build the hosted ChatGPT onboarding app."""
 
     security = _no_rebind_security()
     try:

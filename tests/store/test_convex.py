@@ -76,6 +76,35 @@ def test_convex_store_normalizes_cloud_url():
     assert store.store_url == "https://happy-goat-123.convex.site/store"
 
 
+def test_convex_store_sends_bearer_key_and_operation_payload(monkeypatch):
+    calls: list[dict[str, object]] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"ok": True, "result": []}
+
+    def fake_post(url, json, headers, timeout):
+        calls.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openpasture.store.convex.httpx.post", fake_post)
+
+    store = ConvexStore("https://happy-goat-123.convex.cloud", "opk_live_shared")
+
+    assert store.list_farms() == []
+    assert calls == [
+        {
+            "url": "https://happy-goat-123.convex.site/store",
+            "json": {"operation": "farms.list", "args": {}},
+            "headers": {"authorization": "Bearer opk_live_shared"},
+            "timeout": 30.0,
+        }
+    ]
+
+
 def test_convex_store_round_trips_core_gis_entities():
     store = FakeConvexStore()
     farm = Farm(

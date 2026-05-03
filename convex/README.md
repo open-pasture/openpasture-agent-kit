@@ -12,8 +12,8 @@ reactive store for a hosted or self-hosted OpenPasture runtime.
 - `http.ts`: a small HTTP bridge used by `openpasture.store.convex.ConvexStore`.
 
 This backend intentionally does not include hosted product concerns such as
-Clerk accounts, invites, billing, Railway provisioning, support tools, or admin
-dashboards. Those belong in `openpasture-cloud`.
+Clerk accounts, invites, billing, support tools, or admin dashboards. Those
+belong in `openpasture-cloud`.
 
 ## Local Setup
 

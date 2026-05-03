@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from openpasture.connectors import cloud_sync, mcp_chatgpt_app
+from openpasture.connectors import mcp_chatgpt_app
 
 
 def test_chatgpt_app_tool_surface_is_narrow_and_annotated():
@@ -71,23 +71,7 @@ def test_save_onboarding_and_render_summary_returns_ui_ready_payload():
     assert "field note" in rendered["next_question"]
 
 
-def test_save_onboarding_with_maps_pin_location_syncs_cloud_batches(monkeypatch):
-    monkeypatch.setenv("CONVEX_SYNC_URL", "https://openpasture.example/sync")
-    monkeypatch.setenv("CONVEX_SYNC_KEY", "tenant_sync_key")
-    captured_batches = []
-
-    def fake_post_sync_batch(sync_url, tenant_key, table, records):
-        captured_batches.append(
-            {
-                "sync_url": sync_url,
-                "tenant_key": tenant_key,
-                "table": table,
-                "records": records,
-            }
-        )
-
-    monkeypatch.setattr(cloud_sync, "_post_sync_batch", fake_post_sync_batch)
-
+def test_save_onboarding_with_maps_pin_location_returns_ui_ready_payload():
     status = mcp_chatgpt_app.handle_save_farm_onboarding(
         {
             "name": "Pinned Pastures",
@@ -114,24 +98,6 @@ def test_save_onboarding_with_maps_pin_location_syncs_cloud_batches(monkeypatch)
     assert status["onboarding_status"]["complete"] is True
     assert status["farm"]["location"] == {"type": "Point", "coordinates": [-95.2345, 36.4567]}
     assert "Google Maps screenshot" in status["farm"]["notes"]
-    assert status["cloud_sync"]["status"] == "ok"
-
-    assert [batch["table"] for batch in captured_batches] == ["farms", "landUnits", "herds"]
-    farm_record = captured_batches[0]["records"][0]
-    assert farm_record["agentFarmId"] == status["farm"]["id"]
-    assert farm_record["location"] == {"type": "Point", "coordinates": [-95.2345, 36.4567]}
-    assert farm_record["notes"] == status["farm"]["notes"]
-
-    paddock_record = captured_batches[1]["records"][0]
-    assert paddock_record["agentLandUnitId"] == "paddock_home"
-    assert paddock_record["unitType"] == "paddock"
-    assert paddock_record["geometry"]["type"] == "Feature"
-    assert paddock_record["geometry"]["geometry"]["type"] == "Polygon"
-
-    herd_record = captured_batches[2]["records"][0]
-    assert herd_record["agentHerdId"] == "herd_maps"
-    assert herd_record["currentPaddockId"] == "paddock_home"
-
 
 
 def test_save_onboarding_refines_existing_farm_without_duplicate_herds():
@@ -162,6 +128,7 @@ def test_save_onboarding_refines_existing_farm_without_duplicate_herds():
     assert refined["farm"]["location"] == {"type": "Point", "coordinates": [-95.1, 36.1]}
     assert [herd["id"] for herd in refined["herds"]] == ["herd_existing"]
     assert refined["herds"][0]["current_paddock_id"] == "paddock_home"
+
 
 def test_record_starting_observation_refreshes_onboarding_summary():
     status = mcp_chatgpt_app.handle_save_farm_onboarding(

@@ -55,7 +55,7 @@ def _streamable_http_app(server: Any, transport_security: Any = None) -> ASGIApp
 
 
 def build_hosted_app() -> ASGIApp:
-    """Build the Railway-hosted MCP ASGI application."""
+    """Build the hosted MCP ASGI application."""
 
     security = _no_rebind_security()
 
