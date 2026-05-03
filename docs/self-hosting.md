@@ -85,13 +85,41 @@ Record this observation for the current paddock: forage is getting short and mud
 ## Storage Modes
 
 - `sqlite`: default self-hosted mode.
-- `convex`: intended for the hosted wrapper and dashboards.
+- `convex`: optional first-party backend for hosted or self-hosted runtimes that
+  want managed sync and real-time UI reads.
+
+### Optional Convex Backend
+
+Convex is not required for self-hosting. Use it when you want a managed backend
+instead of local SQLite files.
+
+From the agent kit repo:
+
+```bash
+npm install
+npx convex dev
+npx convex env set OPENPASTURE_CONVEX_STORE_KEY "replace-with-a-long-random-secret"
+```
+
+Then run the OpenPasture agent against that deployment:
+
+```bash
+export OPENPASTURE_STORE=convex
+export OPENPASTURE_CONVEX_URL="https://your-deployment.convex.cloud"
+export OPENPASTURE_CONVEX_KEY="replace-with-a-long-random-secret"
+```
+
+The Convex backend files live in `convex/`. They store portable farm state only:
+farms, land units, paddocks, herds, observations, plans, actions, pipelines, and
+daily briefs. Hosted account systems such as Clerk, invites, billing,
+provisioning, and support remain outside the OSS backend.
 
 ## Current Alpha Boundaries
 
-- The self-hosted alpha is built around SQLite, local scheduling, and Hermes messaging.
+- The self-hosted alpha defaults to SQLite, local scheduling, and Hermes messaging.
 - Satellite ingestion and photo ingestion are not implemented yet.
-- `convex` is reserved for the later hosted wrapper and is not ready for production use in this repo yet.
+- `convex` is available as an optional backend, but SQLite remains the simplest
+  path for local single-farm installs.
 - Scheduled brief delivery remains local to this runtime. Hosted transport and delivery orchestration belong in the separate cloud wrapper.
 
 ## Maintainer Pilot Validation

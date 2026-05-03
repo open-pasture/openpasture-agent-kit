@@ -12,6 +12,7 @@ The farmer brings a conversation surface. The agent brings reasoning. `openPastu
 - portable markdown skills that teach an agent how to work through farm operations,
 - curated practitioner knowledge from trusted regenerative agriculture sources,
 - local-first farm state backed by SQLite by default,
+- optional first-party Convex storage for hosted or self-hosted sync,
 - ingestion paths for weather, satellite, photos, and vendor telemetry,
 - a plain-language operating stance encoded in `SOUL.md`.
 
@@ -33,6 +34,7 @@ The goal is to turn any capable general agent into a useful companion for managi
 - Recurring local morning-brief scheduling
 - Data pipeline setup, persistence, and execution
 - Portable skill discovery
+- Optional Convex-backed farm state through `OPENPASTURE_STORE=convex`
 
 ## Quickstart
 
@@ -45,6 +47,18 @@ export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
 export OPENPASTURE_BRIEF_TIME="06:00"
 # Optional, required for external web knowledge ingestion:
 export FIRECRAWL_API_KEY="fc-..."
+```
+
+Optional Convex backend:
+
+```bash
+npm install
+npx convex dev
+npx convex env set OPENPASTURE_CONVEX_STORE_KEY "replace-with-a-long-random-secret"
+
+export OPENPASTURE_STORE=convex
+export OPENPASTURE_CONVEX_URL="https://your-deployment.convex.cloud"
+export OPENPASTURE_CONVEX_KEY="replace-with-a-long-random-secret"
 ```
 
 Use the CLI:

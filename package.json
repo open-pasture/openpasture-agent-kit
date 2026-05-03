@@ -1,0 +1,17 @@
+{
+  "name": "openpasture-agent-kit-convex",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "convex:dev": "convex dev",
+    "convex:codegen": "convex codegen",
+    "convex:typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "convex": "^1.35.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2"
+  }
+}
