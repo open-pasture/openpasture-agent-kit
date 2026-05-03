@@ -45,7 +45,7 @@ An activity event uses a stable envelope plus flexible typed payload:
 - stable fields: event id, farm id, event type, source, occurred time, recorded time, title, body, summary, provenance, visibility,
 - typed payload: event-specific detail such as weather readings, treatment dose, breeding outcome, or image analysis,
 - targets: indexed links to every profile that should show the event: farm, pasture, paddock, herd, animal, or another land unit,
-- attachments: images, reports, files, and other media associated with the event.
+- attachments: images, reports, files, and other media associated with the event. Image attachments may include a stable thumbnail URL for feed previews.
 
 This lets OpenPasture keep a fluid model that can grow with new data sources while preserving fast profile feeds.
 

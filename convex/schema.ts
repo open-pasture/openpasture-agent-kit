@@ -98,6 +98,8 @@ export default defineSchema({
     herdId: v.optional(v.string()),
     metrics: v.any(),
     mediaUrl: v.optional(v.string()),
+    mediaThumbnailUrl: v.optional(v.string()),
+    mediaMetadata: v.optional(v.any()),
     tags: v.array(v.string()),
   })
     .index("by_tenant_key_and_observation_id", ["tenantKey", "observationId"])
@@ -141,6 +143,7 @@ export default defineSchema({
     activityId: v.string(),
     url: v.string(),
     mediaType: v.string(),
+    thumbnailUrl: v.optional(v.string()),
     fileName: v.optional(v.string()),
     contentType: v.optional(v.string()),
     metadata: v.any(),

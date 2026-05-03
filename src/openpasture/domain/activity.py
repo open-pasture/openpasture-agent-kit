@@ -29,6 +29,7 @@ class FarmActivityAttachment:
     id: str
     url: str
     media_type: str
+    thumbnail_url: str | None = None
     file_name: str | None = None
     content_type: str | None = None
     metadata: dict[str, object] = field(default_factory=dict)

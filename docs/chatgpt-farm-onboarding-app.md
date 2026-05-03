@@ -27,7 +27,9 @@ The public ChatGPT app should expose only the onboarding-specific tools from
   ChatGPT-extracted map context as structured `location` GeoJSON or as
   `location_hint` notes when coordinates are uncertain.
 - `record_starting_observation`: writes one farmer-provided field note during
-  onboarding.
+  onboarding. It can accept a ChatGPT `image_file` parameter for pasture photos;
+  hosted OpenPasture should copy temporary ChatGPT file URLs into durable media
+  storage before recording the observation.
 - `render_onboarding_summary`: read-only render tool that attaches
   `ui://openpasture/onboarding-summary-v2.html` through the MCP Apps standard
   `_meta.ui.resourceUri`, with `_meta["openai/outputTemplate"]` included as a
@@ -92,7 +94,7 @@ run in ChatGPT and other compatible hosts:
   confirmed by the user, but it does not affect the public internet.
 - `record_starting_observation`: `readOnlyHint=false`,
   `destructiveHint=false`, `openWorldHint=false`; it writes a private field note
-  the farmer explicitly provides.
+  the farmer explicitly provides, optionally with a private image attachment.
 - `render_onboarding_summary`: `readOnlyHint=true`, `destructiveHint=false`,
   `openWorldHint=false`; it renders structured data already returned by the app.
 

@@ -272,6 +272,8 @@ def test_sqlite_activity_feed_rolls_up_to_profiles_and_manifest(tmp_path):
         paddock_id=paddock.id,
         herd_id=herd.id,
         media_url="https://example.com/a12.jpg",
+        media_thumbnail_url="https://example.com/a12-thumb.jpg",
+        media_metadata={"cloud_media_asset_id": "media_123"},
         tags=["health"],
     )
 
@@ -288,6 +290,10 @@ def test_sqlite_activity_feed_rolls_up_to_profiles_and_manifest(tmp_path):
     animal_feed = store.list_animal_activity(animal.id)
 
     assert any(event.event_type == "image_observation" for event in pasture_feed)
+    image_event = next(event for event in pasture_feed if event.event_type == "image_observation")
+    assert image_event.attachments[0].url == "https://example.com/a12.jpg"
+    assert image_event.attachments[0].thumbnail_url == "https://example.com/a12-thumb.jpg"
+    assert image_event.attachments[0].metadata["cloud_media_asset_id"] == "media_123"
     assert any(event.event_type == "image_observation" for event in paddock_feed)
     assert any(event.event_type == "image_observation" for event in herd_feed)
     assert any(event.event_type == "animal_created" for event in animal_feed)

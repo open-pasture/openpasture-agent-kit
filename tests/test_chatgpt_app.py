@@ -15,6 +15,8 @@ def test_chatgpt_app_tool_surface_is_narrow_and_annotated():
     assert tools["get_onboarding_status"]["annotations"]["readOnlyHint"] is True
     assert tools["save_farm_onboarding"]["annotations"]["readOnlyHint"] is False
     assert tools["record_starting_observation"]["annotations"]["openWorldHint"] is False
+    assert tools["record_starting_observation"]["_meta"]["openai/fileParams"] == ["image_file"]
+    assert "image_file" in tools["record_starting_observation"]["schema"]["properties"]
 
     render_tool = tools["render_onboarding_summary"]
     assert render_tool["annotations"]["readOnlyHint"] is True
@@ -154,3 +156,34 @@ def test_record_starting_observation_refreshes_onboarding_summary():
     assert refreshed["onboarding_status"]["complete"] is True
     assert len(refreshed["recent_observations"]) == 1
     assert refreshed["recent_observations"][0]["content"] == "Grass is knee high in Home paddock."
+
+
+def test_record_starting_observation_accepts_chatgpt_image_file():
+    status = mcp_chatgpt_app.handle_save_farm_onboarding(
+        {
+            "name": "Image Creek",
+            "timezone": "America/Chicago",
+            "herd": {"id": "herd_1", "species": "cattle", "count": 28},
+            "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+            "current_paddock_id": "paddock_home",
+        }
+    )
+
+    refreshed = mcp_chatgpt_app.handle_record_starting_observation(
+        {
+            "farm_id": status["farm"]["id"],
+            "content": "Photo shows good residual in Home paddock.",
+            "paddock_id": "paddock_home",
+            "image_file": {
+                "download_url": "https://files.example.com/pasture.jpg",
+                "file_id": "file_123",
+                "file_name": "pasture.jpg",
+                "mime_type": "image/jpeg",
+            },
+        }
+    )
+
+    observation = refreshed["recent_observations"][0]
+    assert observation["source"] == "photo"
+    assert observation["media_url"] == "https://files.example.com/pasture.jpg"
+    assert observation["media_metadata"]["chatgpt_file_id"] == "file_123"

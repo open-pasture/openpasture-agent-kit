@@ -457,8 +457,11 @@ def handle_save_farm_onboarding(args: dict[str, object]) -> dict[str, Any]:
 def handle_record_starting_observation(args: dict[str, object]) -> dict[str, Any]:
     """Record one field note during onboarding and return refreshed status."""
 
-    _load_json_tool_result("record_observation", args)
-    farm_id = args.get("farm_id")
+    payload = dict(args)
+    if (payload.get("media_url") or payload.get("image_file")) and not payload.get("source") and not payload.get("type"):
+        payload["source"] = "photo"
+    _load_json_tool_result("record_observation", payload)
+    farm_id = payload.get("farm_id")
     return handle_get_onboarding_status({"farm_id": farm_id} if isinstance(farm_id, str) else {})
 
 
@@ -536,6 +539,7 @@ def app_tool_payload() -> list[dict[str, Any]]:
                 "openWorldHint": False,
             },
             "_meta": {
+                "openai/fileParams": ["image_file"],
                 "openai/toolInvocation/invoking": "Recording field note...",
                 "openai/toolInvocation/invoked": "Recorded field note.",
             },
@@ -685,8 +689,13 @@ def build_chatgpt_app_server(name: str = "OpenPasture Farm Onboarding", **settin
         paddock_id: str | None = None,
         herd_id: str | None = None,
         observed_at: str | None = None,
+        media_url: str | None = None,
+        media_thumbnail_url: str | None = None,
+        image_file: dict[str, Any] | None = None,
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
+        if (media_url or image_file) and source == "field":
+            source = "photo"
         args = {
             "content": content,
             "source": source,
@@ -694,6 +703,9 @@ def build_chatgpt_app_server(name: str = "OpenPasture Farm Onboarding", **settin
             "paddock_id": paddock_id,
             "herd_id": herd_id,
             "observed_at": observed_at,
+            "media_url": media_url,
+            "media_thumbnail_url": media_thumbnail_url,
+            "image_file": image_file,
             "tags": tags,
         }
         return handle_record_starting_observation(

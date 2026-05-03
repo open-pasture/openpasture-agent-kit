@@ -62,4 +62,6 @@ class Observation:
     herd_id: str | None = None
     metrics: dict[str, object] = field(default_factory=dict)
     media_url: str | None = None
+    media_thumbnail_url: str | None = None
+    media_metadata: dict[str, object] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)

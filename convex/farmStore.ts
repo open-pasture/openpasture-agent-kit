@@ -123,6 +123,8 @@ const observationRecord = v.object({
   herdId: v.optional(v.string()),
   metrics: v.any(),
   mediaUrl: v.optional(v.string()),
+  mediaThumbnailUrl: v.optional(v.string()),
+  mediaMetadata: v.optional(v.any()),
   tags: v.array(v.string()),
 });
 
@@ -136,6 +138,7 @@ const activityAttachmentRecord = v.object({
   attachmentId: v.string(),
   url: v.string(),
   mediaType: v.string(),
+  thumbnailUrl: v.optional(v.string()),
   fileName: v.optional(v.string()),
   contentType: v.optional(v.string()),
   metadata: v.any(),
@@ -629,7 +632,8 @@ export const recordObservation = mutation({
             attachmentId: `attachment_${args.record.observationId}`,
             url: args.record.mediaUrl,
             mediaType: ["photo", "trailcam"].includes(args.record.source) ? "image" : "file",
-            metadata: { observation_id: args.record.observationId },
+            thumbnailUrl: args.record.mediaThumbnailUrl,
+            metadata: { observation_id: args.record.observationId, ...(args.record.mediaMetadata ?? {}) },
           }]
         : [],
     });

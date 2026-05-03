@@ -112,6 +112,7 @@ class ConvexStore:
         self.deployment_url = _normalize_convex_site_url(deployment_url)
         self.deploy_key = deploy_key
         self.store_url = urljoin(f"{self.deployment_url}/", "store")
+        self.media_import_url = urljoin(f"{self.deployment_url}/", "media/import")
 
     def connect(self) -> None:
         """Validate configuration for the remote Convex deployment."""
@@ -133,6 +134,44 @@ class ConvexStore:
         if not payload.get("ok"):
             raise RuntimeError(str(payload.get("error") or "Convex store request failed."))
         return payload.get("result")
+
+    def import_media_from_url(
+        self,
+        download_url: str,
+        *,
+        farm_id: str,
+        file_id: object | None = None,
+        file_name: object | None = None,
+        content_type: object | None = None,
+    ) -> dict[str, object]:
+        """Copy a temporary hosted file URL into durable OpenPasture media storage."""
+
+        self.connect()
+        response = httpx.post(
+            self.media_import_url,
+            json=_compact(
+                {
+                    "downloadUrl": download_url,
+                    "farmId": farm_id,
+                    "fileId": file_id if isinstance(file_id, str) else None,
+                    "fileName": file_name if isinstance(file_name, str) else None,
+                    "contentType": content_type if isinstance(content_type, str) else None,
+                }
+            ),
+            headers={"authorization": f"Bearer {self.deploy_key}"},
+            timeout=45.0,
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            if response.status_code == 404:
+                return {"url": download_url, "metadata": {"media_import": "unsupported"}}
+            raise
+        payload = response.json()
+        if not payload.get("ok"):
+            raise RuntimeError(str(payload.get("error") or "Convex media import failed."))
+        result = payload.get("result")
+        return result if isinstance(result, dict) else {}
 
     def _farm_record(self, farm: Farm) -> dict[str, object]:
         return _compact(
@@ -292,6 +331,8 @@ class ConvexStore:
                 "herdId": observation.herd_id,
                 "metrics": observation.metrics,
                 "mediaUrl": observation.media_url,
+                "mediaThumbnailUrl": observation.media_thumbnail_url,
+                "mediaMetadata": observation.media_metadata,
                 "tags": observation.tags,
             }
         )
@@ -309,6 +350,10 @@ class ConvexStore:
             herd_id=record.get("herdId") if isinstance(record.get("herdId"), str) else None,
             metrics=record.get("metrics") if isinstance(record.get("metrics"), dict) else {},
             media_url=record.get("mediaUrl") if isinstance(record.get("mediaUrl"), str) else None,
+            media_thumbnail_url=(
+                record.get("mediaThumbnailUrl") if isinstance(record.get("mediaThumbnailUrl"), str) else None
+            ),
+            media_metadata=record.get("mediaMetadata") if isinstance(record.get("mediaMetadata"), dict) else {},
             tags=[str(item) for item in record.get("tags", [])],
         )
 
@@ -341,6 +386,7 @@ class ConvexStore:
                             "attachmentId": attachment.id,
                             "url": attachment.url,
                             "mediaType": attachment.media_type,
+                            "thumbnailUrl": attachment.thumbnail_url,
                             "fileName": attachment.file_name,
                             "contentType": attachment.content_type,
                             "metadata": attachment.metadata,
@@ -381,6 +427,9 @@ class ConvexStore:
                     id=str(attachment["attachmentId"]),
                     url=str(attachment["url"]),
                     media_type=str(attachment["mediaType"]),
+                    thumbnail_url=(
+                        attachment.get("thumbnailUrl") if isinstance(attachment.get("thumbnailUrl"), str) else None
+                    ),
                     file_name=attachment.get("fileName") if isinstance(attachment.get("fileName"), str) else None,
                     content_type=attachment.get("contentType") if isinstance(attachment.get("contentType"), str) else None,
                     metadata=attachment.get("metadata") if isinstance(attachment.get("metadata"), dict) else {},

@@ -230,11 +230,18 @@ class SQLiteStore:
                     herd_id TEXT,
                     metrics TEXT NOT NULL,
                     media_url TEXT,
+                    media_thumbnail_url TEXT,
+                    media_metadata TEXT NOT NULL DEFAULT '{}',
                     tags TEXT NOT NULL,
                     FOREIGN KEY(farm_id) REFERENCES farms(id)
                 )
                 """
             )
+            observation_columns = {row["name"] for row in connection.execute("PRAGMA table_info(observations)")}
+            if "media_thumbnail_url" not in observation_columns:
+                connection.execute("ALTER TABLE observations ADD COLUMN media_thumbnail_url TEXT")
+            if "media_metadata" not in observation_columns:
+                connection.execute("ALTER TABLE observations ADD COLUMN media_metadata TEXT NOT NULL DEFAULT '{}'")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS farm_activity_events (
@@ -284,6 +291,7 @@ class SQLiteStore:
                     activity_id TEXT NOT NULL,
                     url TEXT NOT NULL,
                     media_type TEXT NOT NULL,
+                    thumbnail_url TEXT,
                     file_name TEXT,
                     content_type TEXT,
                     metadata TEXT NOT NULL,
@@ -291,6 +299,11 @@ class SQLiteStore:
                 )
                 """
             )
+            attachment_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(farm_activity_attachments)")
+            }
+            if "thumbnail_url" not in attachment_columns:
+                connection.execute("ALTER TABLE farm_activity_attachments ADD COLUMN thumbnail_url TEXT")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_activity_attachments_activity ON farm_activity_attachments(activity_id)"
             )
@@ -446,6 +459,8 @@ class SQLiteStore:
             herd_id=row["herd_id"],
             metrics=_json_loads(row["metrics"], {}),
             media_url=row["media_url"],
+            media_thumbnail_url=row["media_thumbnail_url"],
+            media_metadata=_json_loads(row["media_metadata"], {}),
             tags=_json_loads(row["tags"], []),
         )
 
@@ -492,6 +507,7 @@ class SQLiteStore:
                     id=attachment["id"],
                     url=attachment["url"],
                     media_type=attachment["media_type"],
+                    thumbnail_url=attachment["thumbnail_url"],
                     file_name=attachment["file_name"],
                     content_type=attachment["content_type"],
                     metadata=_json_loads(attachment["metadata"], {}),
@@ -981,8 +997,9 @@ class SQLiteStore:
             connection.execute(
                 """
                 INSERT INTO observations (
-                    id, farm_id, source, observed_at, content, paddock_id, herd_id, metrics, media_url, tags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    id, farm_id, source, observed_at, content, paddock_id, herd_id, metrics,
+                    media_url, media_thumbnail_url, media_metadata, tags
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     observation.id,
@@ -994,6 +1011,8 @@ class SQLiteStore:
                     observation.herd_id,
                     _json_dumps(observation.metrics),
                     observation.media_url,
+                    observation.media_thumbnail_url,
+                    _json_dumps(observation.media_metadata),
                     _json_dumps(observation.tags),
                 ),
             )
@@ -1008,7 +1027,8 @@ class SQLiteStore:
                     id=f"attachment_{observation.id}",
                     url=observation.media_url,
                     media_type="image" if observation.source in {"photo", "trailcam"} else "file",
-                    metadata={"observation_id": observation.id},
+                    thumbnail_url=observation.media_thumbnail_url,
+                    metadata={"observation_id": observation.id, **observation.media_metadata},
                 )
             ]
             if observation.media_url
@@ -1081,14 +1101,15 @@ class SQLiteStore:
                 connection.execute(
                     """
                     INSERT INTO farm_activity_attachments (
-                        id, activity_id, url, media_type, file_name, content_type, metadata
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        id, activity_id, url, media_type, thumbnail_url, file_name, content_type, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         attachment.id,
                         event.id,
                         attachment.url,
                         attachment.media_type,
+                        attachment.thumbnail_url,
                         attachment.file_name,
                         attachment.content_type,
                         _json_dumps(attachment.metadata),

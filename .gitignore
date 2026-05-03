@@ -4,6 +4,7 @@ __pycache__/
 .Python
 .venv/
 venv/
+node_modules/
 .env
 .env.*
 .pytest_cache/
