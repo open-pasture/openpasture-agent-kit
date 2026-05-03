@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from uuid import uuid4
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterator
 
 from openpasture.domain import (
+    Animal,
     DailyBrief,
     DataPipeline,
     Farm,
+    FarmActivityAttachment,
+    FarmActivityEvent,
+    FarmActivityTarget,
     FarmerAction,
     GeoFeature,
     GeoPoint,
@@ -185,6 +190,36 @@ class SQLiteStore:
             )
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS animals (
+                    id TEXT PRIMARY KEY,
+                    farm_id TEXT NOT NULL,
+                    herd_id TEXT,
+                    species TEXT NOT NULL,
+                    sex TEXT NOT NULL,
+                    name TEXT,
+                    tag TEXT NOT NULL,
+                    secondary_tags TEXT NOT NULL,
+                    breed TEXT,
+                    birth_date TEXT,
+                    dam_id TEXT,
+                    sire_id TEXT,
+                    status TEXT NOT NULL,
+                    current_paddock_id TEXT,
+                    notes TEXT NOT NULL,
+                    metadata TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(farm_id) REFERENCES farms(id),
+                    FOREIGN KEY(herd_id) REFERENCES herds(id)
+                )
+                """
+            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_animals_farm ON animals(farm_id)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_animals_herd ON animals(herd_id)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_animals_farm_tag ON animals(farm_id, tag)")
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_animals_farm_status ON animals(farm_id, status)")
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS observations (
                     id TEXT PRIMARY KEY,
                     farm_id TEXT NOT NULL,
@@ -199,6 +234,65 @@ class SQLiteStore:
                     FOREIGN KEY(farm_id) REFERENCES farms(id)
                 )
                 """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS farm_activity_events (
+                    id TEXT PRIMARY KEY,
+                    farm_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    occurred_at TEXT NOT NULL,
+                    recorded_at TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    summary TEXT,
+                    payload TEXT NOT NULL,
+                    provenance TEXT NOT NULL,
+                    visibility TEXT NOT NULL,
+                    FOREIGN KEY(farm_id) REFERENCES farms(id)
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_activity_events_farm_occurred ON farm_activity_events(farm_id, occurred_at)"
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS farm_activity_targets (
+                    activity_id TEXT NOT NULL,
+                    farm_id TEXT NOT NULL,
+                    subject_type TEXT NOT NULL,
+                    subject_id TEXT NOT NULL,
+                    relationship TEXT NOT NULL,
+                    occurred_at TEXT NOT NULL,
+                    PRIMARY KEY(activity_id, subject_type, subject_id, relationship),
+                    FOREIGN KEY(activity_id) REFERENCES farm_activity_events(id)
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_activity_targets_subject ON farm_activity_targets(subject_type, subject_id, occurred_at)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_activity_targets_farm ON farm_activity_targets(farm_id, occurred_at)"
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS farm_activity_attachments (
+                    id TEXT PRIMARY KEY,
+                    activity_id TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    media_type TEXT NOT NULL,
+                    file_name TEXT,
+                    content_type TEXT,
+                    metadata TEXT NOT NULL,
+                    FOREIGN KEY(activity_id) REFERENCES farm_activity_events(id)
+                )
+                """
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_activity_attachments_activity ON farm_activity_attachments(activity_id)"
             )
             connection.execute(
                 """
@@ -319,6 +413,28 @@ class SQLiteStore:
             notes=row["notes"],
         )
 
+    def _animal_from_row(self, row: sqlite3.Row) -> Animal:
+        return Animal(
+            id=row["id"],
+            farm_id=row["farm_id"],
+            herd_id=row["herd_id"],
+            species=row["species"],
+            sex=row["sex"],
+            name=row["name"],
+            tag=row["tag"],
+            secondary_tags=_json_loads(row["secondary_tags"], []),
+            breed=row["breed"],
+            birth_date=row["birth_date"],
+            dam_id=row["dam_id"],
+            sire_id=row["sire_id"],
+            status=row["status"],
+            current_paddock_id=row["current_paddock_id"],
+            notes=row["notes"],
+            metadata=_json_loads(row["metadata"], {}),
+            created_at=_datetime_from_text(row["created_at"]),
+            updated_at=_datetime_from_text(row["updated_at"]),
+        )
+
     def _observation_from_row(self, row: sqlite3.Row) -> Observation:
         return Observation(
             id=row["id"],
@@ -331,6 +447,57 @@ class SQLiteStore:
             metrics=_json_loads(row["metrics"], {}),
             media_url=row["media_url"],
             tags=_json_loads(row["tags"], []),
+        )
+
+    def _activity_from_row(self, connection: sqlite3.Connection, row: sqlite3.Row) -> FarmActivityEvent:
+        target_rows = connection.execute(
+            """
+            SELECT * FROM farm_activity_targets
+            WHERE activity_id = ?
+            ORDER BY relationship ASC, subject_type ASC, subject_id ASC
+            """,
+            (row["id"],),
+        ).fetchall()
+        attachment_rows = connection.execute(
+            """
+            SELECT * FROM farm_activity_attachments
+            WHERE activity_id = ?
+            ORDER BY id ASC
+            """,
+            (row["id"],),
+        ).fetchall()
+        return FarmActivityEvent(
+            id=row["id"],
+            farm_id=row["farm_id"],
+            event_type=row["event_type"],
+            source=row["source"],
+            occurred_at=_datetime_from_text(row["occurred_at"]),
+            recorded_at=_datetime_from_text(row["recorded_at"]),
+            title=row["title"],
+            body=row["body"],
+            summary=row["summary"],
+            payload=_json_loads(row["payload"], {}),
+            provenance=_json_loads(row["provenance"], {}),
+            visibility=row["visibility"],
+            targets=[
+                FarmActivityTarget(
+                    subject_type=target["subject_type"],
+                    subject_id=target["subject_id"],
+                    relationship=target["relationship"],
+                )
+                for target in target_rows
+            ],
+            attachments=[
+                FarmActivityAttachment(
+                    id=attachment["id"],
+                    url=attachment["url"],
+                    media_type=attachment["media_type"],
+                    file_name=attachment["file_name"],
+                    content_type=attachment["content_type"],
+                    metadata=_json_loads(attachment["metadata"], {}),
+                )
+                for attachment in attachment_rows
+            ],
         )
 
     def _pipeline_from_row(self, row: sqlite3.Row) -> DataPipeline:
@@ -408,6 +575,60 @@ class SQLiteStore:
                 f"UPDATE farms SET {column} = ? WHERE id = ?",
                 (_json_dumps(values), farm_id),
             )
+
+    def _target_for_land_unit(self, land_unit_id: str, relationship: str = "primary") -> list[FarmActivityTarget]:
+        unit = self.get_land_unit(land_unit_id)
+        if unit is None:
+            return [FarmActivityTarget(subject_type="paddock", subject_id=land_unit_id, relationship=relationship)]
+        subject_type = unit.unit_type if unit.unit_type in {"pasture", "paddock"} else "land_unit"
+        targets = [FarmActivityTarget(subject_type=subject_type, subject_id=unit.id, relationship=relationship)]
+        if unit.parent_id:
+            parent = self.get_land_unit(unit.parent_id)
+            if parent and parent.unit_type == "pasture":
+                targets.append(FarmActivityTarget(subject_type="pasture", subject_id=parent.id, relationship="parent"))
+        return targets
+
+    def _targets_from_context(self, farm_id: str, context: dict[str, object]) -> list[FarmActivityTarget]:
+        targets = [FarmActivityTarget(subject_type="farm", subject_id=farm_id, relationship="farm")]
+        for key, subject_type in (("paddock_id", "paddock"), ("herd_id", "herd"), ("animal_id", "animal")):
+            value = context.get(key)
+            if isinstance(value, str) and value:
+                if subject_type == "paddock":
+                    targets.extend(self._target_for_land_unit(value))
+                else:
+                    targets.append(FarmActivityTarget(subject_type=subject_type, subject_id=value))
+        return targets
+
+    def _record_system_activity(
+        self,
+        *,
+        farm_id: str,
+        event_type: str,
+        source: str,
+        title: str,
+        body: str = "",
+        occurred_at: datetime | None = None,
+        payload: dict[str, object] | None = None,
+        targets: list[FarmActivityTarget] | None = None,
+        summary: str | None = None,
+        provenance: dict[str, object] | None = None,
+        attachments: list[FarmActivityAttachment] | None = None,
+    ) -> str:
+        event = FarmActivityEvent(
+            id=f"activity_{uuid4().hex}",
+            farm_id=farm_id,
+            event_type=event_type,
+            source=source,
+            occurred_at=occurred_at or datetime.utcnow(),
+            title=title,
+            body=body,
+            summary=summary,
+            payload=payload or {},
+            provenance=provenance or {"source": source},
+            targets=targets or [FarmActivityTarget(subject_type="farm", subject_id=farm_id, relationship="farm")],
+            attachments=attachments or [],
+        )
+        return self.record_activity_event(event)
 
     def get_farm(self, farm_id: str) -> Farm | None:
         with self._connect() as connection:
@@ -628,6 +849,132 @@ class SQLiteStore:
                 "UPDATE herds SET current_paddock_id = ? WHERE id = ?",
                 (paddock_id, herd_id),
             )
+        herd = next((item for farm in self.list_farms() for item in self.get_herds(farm.id) if item.id == herd_id), None)
+        if herd is not None:
+            self._record_system_activity(
+                farm_id=herd.farm_id,
+                event_type="movement",
+                source="herd_position",
+                title="Herd moved",
+                body=f"{herd.species} herd moved to {paddock_id}.",
+                payload={"herd_id": herd_id, "target_paddock_id": paddock_id},
+                targets=[
+                    FarmActivityTarget(subject_type="herd", subject_id=herd_id),
+                    *self._target_for_land_unit(paddock_id, relationship="target"),
+                ],
+            )
+
+    def create_animal(self, animal: Animal) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO animals (
+                    id, farm_id, herd_id, species, sex, name, tag, secondary_tags,
+                    breed, birth_date, dam_id, sire_id, status, current_paddock_id,
+                    notes, metadata, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    animal.id,
+                    animal.farm_id,
+                    animal.herd_id,
+                    animal.species,
+                    animal.sex,
+                    animal.name,
+                    animal.tag,
+                    _json_dumps(animal.secondary_tags),
+                    animal.breed,
+                    animal.birth_date,
+                    animal.dam_id,
+                    animal.sire_id,
+                    animal.status,
+                    animal.current_paddock_id,
+                    animal.notes,
+                    _json_dumps(animal.metadata),
+                    _datetime_to_text(animal.created_at),
+                    _datetime_to_text(animal.updated_at),
+                ),
+            )
+        self._record_system_activity(
+            farm_id=animal.farm_id,
+            event_type="animal_created",
+            source="animal_record",
+            title=f"Animal {animal.tag} added",
+            body=animal.notes,
+            payload={"animal_id": animal.id, "tag": animal.tag, "species": animal.species, "status": animal.status},
+            targets=[
+                FarmActivityTarget(subject_type="animal", subject_id=animal.id),
+                *([FarmActivityTarget(subject_type="herd", subject_id=animal.herd_id)] if animal.herd_id else []),
+            ],
+        )
+        return animal.id
+
+    def get_animal(self, animal_id: str) -> Animal | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM animals WHERE id = ?", (animal_id,)).fetchone()
+        return None if row is None else self._animal_from_row(row)
+
+    def list_animals(self, farm_id: str, herd_id: str | None = None) -> list[Animal]:
+        with self._connect() as connection:
+            if herd_id is None:
+                rows = connection.execute(
+                    "SELECT * FROM animals WHERE farm_id = ? ORDER BY tag ASC, id ASC",
+                    (farm_id,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT * FROM animals WHERE farm_id = ? AND herd_id = ? ORDER BY tag ASC, id ASC",
+                    (farm_id, herd_id),
+                ).fetchall()
+        return [self._animal_from_row(row) for row in rows]
+
+    def update_animal(self, animal_id: str, **updates: object) -> None:
+        if not updates:
+            return
+
+        column_map = {
+            "herd_id": "herd_id",
+            "species": "species",
+            "sex": "sex",
+            "name": "name",
+            "tag": "tag",
+            "secondary_tags": "secondary_tags",
+            "breed": "breed",
+            "birth_date": "birth_date",
+            "dam_id": "dam_id",
+            "sire_id": "sire_id",
+            "status": "status",
+            "current_paddock_id": "current_paddock_id",
+            "notes": "notes",
+            "metadata": "metadata",
+            "updated_at": "updated_at",
+        }
+        assignments: list[str] = []
+        values: list[object] = []
+        for key, value in updates.items():
+            if key not in column_map:
+                continue
+            if key == "secondary_tags":
+                value = _json_dumps(value if isinstance(value, list) else [])
+            elif key == "metadata":
+                value = _json_dumps(value if isinstance(value, dict) else {})
+            elif key == "updated_at":
+                value = _datetime_to_text(value) if isinstance(value, datetime) else _datetime_to_text(datetime.utcnow())
+            assignments.append(f"{column_map[key]} = ?")
+            values.append(value)
+
+        if "updated_at" not in updates:
+            assignments.append("updated_at = ?")
+            values.append(_datetime_to_text(datetime.utcnow()))
+
+        if not assignments:
+            return
+        values.append(animal_id)
+        with self._connect() as connection:
+            connection.execute(
+                f"UPDATE animals SET {', '.join(assignments)} WHERE id = ?",
+                tuple(values),
+            )
 
     def record_observation(self, observation: Observation) -> str:
         with self._connect() as connection:
@@ -650,7 +997,138 @@ class SQLiteStore:
                     _json_dumps(observation.tags),
                 ),
             )
+        targets = [FarmActivityTarget(subject_type="farm", subject_id=observation.farm_id, relationship="farm")]
+        if observation.paddock_id:
+            targets.extend(self._target_for_land_unit(observation.paddock_id))
+        if observation.herd_id:
+            targets.append(FarmActivityTarget(subject_type="herd", subject_id=observation.herd_id))
+        attachments = (
+            [
+                FarmActivityAttachment(
+                    id=f"attachment_{observation.id}",
+                    url=observation.media_url,
+                    media_type="image" if observation.source in {"photo", "trailcam"} else "file",
+                    metadata={"observation_id": observation.id},
+                )
+            ]
+            if observation.media_url
+            else []
+        )
+        self._record_system_activity(
+            farm_id=observation.farm_id,
+            event_type={
+                "weather": "weather_report",
+                "photo": "image_observation",
+                "trailcam": "image_observation",
+                "satellite": "imported_report",
+            }.get(observation.source, "field_note"),
+            source=observation.source,
+            occurred_at=observation.observed_at,
+            title=observation.content[:80] or "Observation recorded",
+            body=observation.content,
+            payload={
+                "observation_id": observation.id,
+                "metrics": observation.metrics,
+                "tags": observation.tags,
+            },
+            targets=targets,
+            attachments=attachments,
+            provenance={"source": "observation", "observation_id": observation.id},
+        )
         return observation.id
+
+    def record_activity_event(self, event: FarmActivityEvent) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO farm_activity_events (
+                    id, farm_id, event_type, source, occurred_at, recorded_at,
+                    title, body, summary, payload, provenance, visibility
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event.id,
+                    event.farm_id,
+                    event.event_type,
+                    event.source,
+                    _datetime_to_text(event.occurred_at),
+                    _datetime_to_text(event.recorded_at),
+                    event.title,
+                    event.body,
+                    event.summary,
+                    _json_dumps(event.payload),
+                    _json_dumps(event.provenance),
+                    event.visibility,
+                ),
+            )
+            for target in event.targets:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO farm_activity_targets (
+                        activity_id, farm_id, subject_type, subject_id, relationship, occurred_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.id,
+                        event.farm_id,
+                        target.subject_type,
+                        target.subject_id,
+                        target.relationship,
+                        _datetime_to_text(event.occurred_at),
+                    ),
+                )
+            for attachment in event.attachments:
+                connection.execute(
+                    """
+                    INSERT INTO farm_activity_attachments (
+                        id, activity_id, url, media_type, file_name, content_type, metadata
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        attachment.id,
+                        event.id,
+                        attachment.url,
+                        attachment.media_type,
+                        attachment.file_name,
+                        attachment.content_type,
+                        _json_dumps(attachment.metadata),
+                    ),
+                )
+        return event.id
+
+    def list_activity_feed(
+        self,
+        farm_id: str,
+        subject_type: str,
+        subject_id: str,
+        limit: int = 50,
+        before: str | None = None,
+    ) -> list[FarmActivityEvent]:
+        values: list[object] = [farm_id, subject_type, subject_id]
+        before_clause = ""
+        if before:
+            before_clause = "AND t.occurred_at < ?"
+            values.append(before)
+        values.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT e.* FROM farm_activity_targets t
+                JOIN farm_activity_events e ON e.id = t.activity_id
+                WHERE t.farm_id = ? AND t.subject_type = ? AND t.subject_id = ?
+                {before_clause}
+                ORDER BY t.occurred_at DESC
+                LIMIT ?
+                """,
+                tuple(values),
+            ).fetchall()
+            return [self._activity_from_row(connection, row) for row in rows]
+
+    def list_animal_activity(self, animal_id: str, limit: int = 50) -> list[FarmActivityEvent]:
+        animal = self.get_animal(animal_id)
+        if animal is None:
+            return []
+        return self.list_activity_feed(animal.farm_id, "animal", animal_id, limit=limit)
 
     def get_recent_observations(self, farm_id: str, days: int = 7) -> list[Observation]:
         cutoff = _datetime_to_text(datetime.utcnow() - timedelta(days=days))
@@ -794,6 +1272,17 @@ class SQLiteStore:
                     action.resolution,
                 ),
             )
+        self._record_system_activity(
+            farm_id=action.farm_id,
+            event_type="farmer_action",
+            source="agent",
+            occurred_at=action.created_at,
+            title=action.summary,
+            body=action.summary,
+            payload={"action_id": action.id, "action_type": action.action_type, "context": action.context},
+            targets=self._targets_from_context(action.farm_id, action.context),
+            provenance={"source": "farmer_action", "action_id": action.id},
+        )
         return action.id
 
     def list_pending_actions(self, farm_id: str) -> list[FarmerAction]:
@@ -809,6 +1298,11 @@ class SQLiteStore:
         return [self._farmer_action_from_row(row) for row in rows]
 
     def resolve_farmer_action(self, action_id: str, resolution: str) -> None:
+        existing_action = None
+        for farm in self.list_farms():
+            existing_action = next((action for action in self.list_pending_actions(farm.id) if action.id == action_id), None)
+            if existing_action is not None:
+                break
         with self._connect() as connection:
             connection.execute(
                 """
@@ -817,6 +1311,17 @@ class SQLiteStore:
                 WHERE id = ?
                 """,
                 (_datetime_to_text(datetime.utcnow()), resolution, action_id),
+            )
+        if existing_action is not None:
+            self._record_system_activity(
+                farm_id=existing_action.farm_id,
+                event_type="farmer_action_resolved",
+                source="agent",
+                title=f"Action resolved: {existing_action.summary}",
+                body=resolution,
+                payload={"action_id": action_id, "resolution": resolution},
+                targets=self._targets_from_context(existing_action.farm_id, existing_action.context),
+                provenance={"source": "farmer_action", "action_id": action_id},
             )
 
     def create_plan(self, plan: MovementDecision) -> str:
@@ -844,6 +1349,32 @@ class SQLiteStore:
                     _datetime_to_text(plan.created_at),
                 ),
             )
+        targets = [FarmActivityTarget(subject_type="farm", subject_id=plan.farm_id, relationship="farm")]
+        if plan.herd_id:
+            targets.append(FarmActivityTarget(subject_type="herd", subject_id=plan.herd_id))
+        if plan.source_paddock_id:
+            targets.extend(self._target_for_land_unit(plan.source_paddock_id, relationship="source"))
+        if plan.target_paddock_id:
+            targets.extend(self._target_for_land_unit(plan.target_paddock_id, relationship="target"))
+        self._record_system_activity(
+            farm_id=plan.farm_id,
+            event_type="grazing_decision",
+            source="movement_plan",
+            occurred_at=plan.created_at,
+            title=f"Grazing decision: {plan.action}",
+            body="\n".join(plan.reasoning),
+            payload={
+                "plan_id": plan.id,
+                "action": plan.action,
+                "confidence": plan.confidence,
+                "for_date": _date_to_text(plan.for_date),
+                "source_paddock_id": plan.source_paddock_id,
+                "target_paddock_id": plan.target_paddock_id,
+                "status": plan.status,
+            },
+            targets=targets,
+            provenance={"source": "movement_decision", "plan_id": plan.id},
+        )
         return plan.id
 
     def get_plan(self, plan_id: str) -> MovementDecision | None:
@@ -868,6 +1399,7 @@ class SQLiteStore:
         return None if row is None else self._plan_from_row(row)
 
     def update_plan_status(self, plan_id: str, status: str, feedback: str | None = None) -> None:
+        plan = self.get_plan(plan_id)
         with self._connect() as connection:
             connection.execute(
                 """
@@ -876,6 +1408,20 @@ class SQLiteStore:
                 WHERE id = ?
                 """,
                 (status, feedback, plan_id),
+            )
+        if plan is not None:
+            targets = [FarmActivityTarget(subject_type="farm", subject_id=plan.farm_id, relationship="farm")]
+            if plan.herd_id:
+                targets.append(FarmActivityTarget(subject_type="herd", subject_id=plan.herd_id))
+            self._record_system_activity(
+                farm_id=plan.farm_id,
+                event_type="grazing_decision_status",
+                source="movement_plan",
+                title=f"Grazing decision {status}",
+                body=feedback or "",
+                payload={"plan_id": plan_id, "status": status, "feedback": feedback},
+                targets=targets,
+                provenance={"source": "movement_decision", "plan_id": plan_id},
             )
 
     def save_daily_brief(self, brief: DailyBrief) -> str:
@@ -896,6 +1442,25 @@ class SQLiteStore:
                     _json_dumps(brief.highlights),
                 ),
             )
+        targets = [FarmActivityTarget(subject_type="farm", subject_id=brief.farm_id, relationship="farm")]
+        if brief.recommendation.herd_id:
+            targets.append(FarmActivityTarget(subject_type="herd", subject_id=brief.recommendation.herd_id))
+        self._record_system_activity(
+            farm_id=brief.farm_id,
+            event_type="daily_brief",
+            source="briefing",
+            occurred_at=brief.generated_at,
+            title="Daily brief generated",
+            body=brief.summary,
+            payload={
+                "brief_id": brief.id,
+                "recommendation_id": brief.recommendation.id,
+                "uncertainty_request": brief.uncertainty_request,
+                "highlights": brief.highlights,
+            },
+            targets=targets,
+            provenance={"source": "daily_brief", "brief_id": brief.id},
+        )
         return brief.id
 
     def get_daily_brief(self, brief_id: str) -> DailyBrief | None:

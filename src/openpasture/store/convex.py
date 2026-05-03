@@ -8,9 +8,13 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import httpx
 
 from openpasture.domain import (
+    Animal,
     DailyBrief,
     DataPipeline,
     Farm,
+    FarmActivityAttachment,
+    FarmActivityEvent,
+    FarmActivityTarget,
     FarmerAction,
     GeoFeature,
     GeoPoint,
@@ -228,6 +232,54 @@ class ConvexStore:
             notes=str(record.get("notes") or ""),
         )
 
+    def _animal_record(self, animal: Animal) -> dict[str, object]:
+        return _compact(
+            {
+                "animalId": animal.id,
+                "farmId": animal.farm_id,
+                "herdId": animal.herd_id,
+                "species": animal.species,
+                "sex": animal.sex,
+                "name": animal.name,
+                "tag": animal.tag,
+                "secondaryTags": animal.secondary_tags,
+                "breed": animal.breed,
+                "birthDate": animal.birth_date,
+                "damId": animal.dam_id,
+                "sireId": animal.sire_id,
+                "status": animal.status,
+                "currentPaddockId": animal.current_paddock_id,
+                "notes": animal.notes,
+                "metadata": animal.metadata,
+                "createdAt": _datetime_to_text(animal.created_at),
+                "updatedAt": _datetime_to_text(animal.updated_at),
+            }
+        )
+
+    def _animal_from_record(self, record: object) -> Animal | None:
+        if not isinstance(record, dict):
+            return None
+        return Animal(
+            id=str(record["animalId"]),
+            farm_id=str(record["farmId"]),
+            herd_id=record.get("herdId") if isinstance(record.get("herdId"), str) else None,
+            species=str(record["species"]),
+            sex=str(record["sex"]),
+            name=record.get("name") if isinstance(record.get("name"), str) else None,
+            tag=str(record["tag"]),
+            secondary_tags=[str(item) for item in record.get("secondaryTags", [])],
+            breed=record.get("breed") if isinstance(record.get("breed"), str) else None,
+            birth_date=record.get("birthDate") if isinstance(record.get("birthDate"), str) else None,
+            dam_id=record.get("damId") if isinstance(record.get("damId"), str) else None,
+            sire_id=record.get("sireId") if isinstance(record.get("sireId"), str) else None,
+            status=str(record.get("status") or "active"),
+            current_paddock_id=record.get("currentPaddockId") if isinstance(record.get("currentPaddockId"), str) else None,
+            notes=str(record.get("notes") or ""),
+            metadata=record.get("metadata") if isinstance(record.get("metadata"), dict) else {},
+            created_at=_datetime_from_text(str(record["createdAt"])),
+            updated_at=_datetime_from_text(str(record["updatedAt"])),
+        )
+
     def _observation_record(self, observation: Observation) -> dict[str, object]:
         return _compact(
             {
@@ -258,6 +310,84 @@ class ConvexStore:
             metrics=record.get("metrics") if isinstance(record.get("metrics"), dict) else {},
             media_url=record.get("mediaUrl") if isinstance(record.get("mediaUrl"), str) else None,
             tags=[str(item) for item in record.get("tags", [])],
+        )
+
+    def _activity_record(self, event: FarmActivityEvent) -> dict[str, object]:
+        return _compact(
+            {
+                "activityId": event.id,
+                "farmId": event.farm_id,
+                "eventType": event.event_type,
+                "source": event.source,
+                "occurredAt": _datetime_to_text(event.occurred_at),
+                "recordedAt": _datetime_to_text(event.recorded_at),
+                "title": event.title,
+                "body": event.body,
+                "summary": event.summary,
+                "payload": event.payload,
+                "provenance": event.provenance,
+                "visibility": event.visibility,
+                "targets": [
+                    {
+                        "subjectType": target.subject_type,
+                        "subjectId": target.subject_id,
+                        "relationship": target.relationship,
+                    }
+                    for target in event.targets
+                ],
+                "attachments": [
+                    _compact(
+                        {
+                            "attachmentId": attachment.id,
+                            "url": attachment.url,
+                            "mediaType": attachment.media_type,
+                            "fileName": attachment.file_name,
+                            "contentType": attachment.content_type,
+                            "metadata": attachment.metadata,
+                        }
+                    )
+                    for attachment in event.attachments
+                ],
+            }
+        )
+
+    def _activity_from_record(self, record: object) -> FarmActivityEvent | None:
+        if not isinstance(record, dict):
+            return None
+        return FarmActivityEvent(
+            id=str(record["activityId"]),
+            farm_id=str(record["farmId"]),
+            event_type=str(record["eventType"]),
+            source=str(record["source"]),
+            occurred_at=_datetime_from_text(str(record["occurredAt"])),
+            recorded_at=_datetime_from_text(str(record["recordedAt"])),
+            title=str(record["title"]),
+            body=str(record.get("body") or ""),
+            summary=record.get("summary") if isinstance(record.get("summary"), str) else None,
+            payload=record.get("payload") if isinstance(record.get("payload"), dict) else {},
+            provenance=record.get("provenance") if isinstance(record.get("provenance"), dict) else {},
+            visibility=str(record.get("visibility") or "farm"),
+            targets=[
+                FarmActivityTarget(
+                    subject_type=str(target["subjectType"]),
+                    subject_id=str(target["subjectId"]),
+                    relationship=str(target.get("relationship") or "primary"),
+                )
+                for target in record.get("targets", [])
+                if isinstance(target, dict)
+            ],
+            attachments=[
+                FarmActivityAttachment(
+                    id=str(attachment["attachmentId"]),
+                    url=str(attachment["url"]),
+                    media_type=str(attachment["mediaType"]),
+                    file_name=attachment.get("fileName") if isinstance(attachment.get("fileName"), str) else None,
+                    content_type=attachment.get("contentType") if isinstance(attachment.get("contentType"), str) else None,
+                    metadata=attachment.get("metadata") if isinstance(attachment.get("metadata"), dict) else {},
+                )
+                for attachment in record.get("attachments", [])
+                if isinstance(attachment, dict)
+            ],
         )
 
     def _pipeline_record(self, pipeline: DataPipeline) -> dict[str, object]:
@@ -461,8 +591,74 @@ class ConvexStore:
     def update_herd_position(self, herd_id: str, paddock_id: str) -> None:
         self._request("herds.updatePosition", {"herdId": herd_id, "paddockId": paddock_id})
 
+    def create_animal(self, animal: Animal) -> str:
+        return str(self._request("animals.create", {"record": self._animal_record(animal)}))
+
+    def get_animal(self, animal_id: str) -> Animal | None:
+        return self._animal_from_record(self._request("animals.get", {"animalId": animal_id}))
+
+    def list_animals(self, farm_id: str, herd_id: str | None = None) -> list[Animal]:
+        args: dict[str, object] = {"farmId": farm_id}
+        if herd_id is not None:
+            args["herdId"] = herd_id
+        records = self._request("animals.list", args)
+        return [animal for item in records or [] if (animal := self._animal_from_record(item))]
+
+    def update_animal(self, animal_id: str, **updates: object) -> None:
+        patch: dict[str, object] = {}
+        key_map = {
+            "herd_id": "herdId",
+            "species": "species",
+            "sex": "sex",
+            "name": "name",
+            "tag": "tag",
+            "secondary_tags": "secondaryTags",
+            "breed": "breed",
+            "birth_date": "birthDate",
+            "dam_id": "damId",
+            "sire_id": "sireId",
+            "status": "status",
+            "current_paddock_id": "currentPaddockId",
+            "notes": "notes",
+            "metadata": "metadata",
+        }
+        for key, value in updates.items():
+            if key == "updated_at" and isinstance(value, datetime):
+                patch["updatedAt"] = _datetime_to_text(value)
+            elif key in key_map:
+                patch[key_map[key]] = value
+        patch.setdefault("updatedAt", _datetime_to_text(datetime.utcnow()))
+        self._request("animals.update", {"animalId": animal_id, "patch": patch})
+
     def record_observation(self, observation: Observation) -> str:
         return str(self._request("observations.record", {"record": self._observation_record(observation)}))
+
+    def record_activity_event(self, event: FarmActivityEvent) -> str:
+        return str(self._request("activity.record", {"record": self._activity_record(event)}))
+
+    def list_activity_feed(
+        self,
+        farm_id: str,
+        subject_type: str,
+        subject_id: str,
+        limit: int = 50,
+        before: str | None = None,
+    ) -> list[FarmActivityEvent]:
+        records = self._request(
+            "activity.feed",
+            {
+                "farmId": farm_id,
+                "subjectType": subject_type,
+                "subjectId": subject_id,
+                "limit": limit,
+                "before": before,
+            },
+        )
+        return [event for item in records or [] if (event := self._activity_from_record(item))]
+
+    def list_animal_activity(self, animal_id: str, limit: int = 50) -> list[FarmActivityEvent]:
+        records = self._request("activity.byAnimal", {"animalId": animal_id, "limit": limit})
+        return [event for item in records or [] if (event := self._activity_from_record(item))]
 
     def get_recent_observations(self, farm_id: str, days: int = 7) -> list[Observation]:
         observed_after = _datetime_to_text(datetime.utcnow() - timedelta(days=days))

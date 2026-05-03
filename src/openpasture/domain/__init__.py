@@ -1,5 +1,6 @@
 """Domain primitives for openPasture."""
 
+from .activity import Animal, FarmActivityAttachment, FarmActivityEvent, FarmActivityTarget
 from .action import FarmerAction
 from .farm import Farm, Herd, LandUnit, Pasture, Section, WaterSource
 from .geo import BoundingBox, GeoFeature, GeoPoint, GeoPolygon
@@ -15,10 +16,14 @@ from .pipeline import DataPipeline
 from .plan import DailyBrief, DecisionAction, MovementDecision
 
 __all__ = [
+    "Animal",
     "BoundingBox",
     "DataPipeline",
     "DailyBrief",
     "DecisionAction",
+    "FarmActivityAttachment",
+    "FarmActivityEvent",
+    "FarmActivityTarget",
     "FarmerAction",
     "Farm",
     "GeoFeature",

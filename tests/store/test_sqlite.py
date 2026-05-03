@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from openpasture.domain import (
+    Animal,
     DataPipeline,
     Farm,
     FarmerAction,
@@ -14,6 +15,7 @@ from openpasture.domain import (
     MovementDecision,
     Observation,
 )
+from openpasture.manifest import build_profile_manifest
 from openpasture.store.sqlite import SQLiteStore
 
 
@@ -225,3 +227,72 @@ def test_sqlite_store_round_trips_pipelines_and_farmer_actions(tmp_path):
     assert updated_pipeline.last_error == "Session expired"
     assert updated_pipeline.last_collected_at == collected_at
     assert store.list_pending_actions(farm.id) == []
+
+
+def test_sqlite_activity_feed_rolls_up_to_profiles_and_manifest(tmp_path):
+    store = build_store(tmp_path)
+    farm = Farm(id="farm_activity", name="Cedar Hollow", timezone="America/Chicago")
+    pasture = LandUnit(
+        id="pasture_1",
+        farm_id=farm.id,
+        unit_type="pasture",
+        name="South Pasture",
+        geometry=GeoFeature.from_geojson(
+            {
+                "type": "Polygon",
+                "coordinates": [[[-95.21, 36.21], [-95.22, 36.21], [-95.22, 36.22], [-95.21, 36.21]]],
+            }
+        ),
+    )
+    paddock = LandUnit(
+        id="paddock_1",
+        farm_id=farm.id,
+        parent_id=pasture.id,
+        unit_type="paddock",
+        name="South A",
+        geometry=pasture.geometry,
+    )
+    herd = Herd(id="herd_1", farm_id=farm.id, species="cattle", count=12, current_paddock_id=paddock.id)
+    animal = Animal(
+        id="animal_1",
+        farm_id=farm.id,
+        herd_id=herd.id,
+        species="cattle",
+        sex="female",
+        tag="A12",
+        breed="Angus",
+        current_paddock_id=paddock.id,
+    )
+    observation = Observation(
+        id="obs_activity",
+        farm_id=farm.id,
+        source="photo",
+        observed_at=datetime.utcnow(),
+        content="A12 has a small scrape on her left flank.",
+        paddock_id=paddock.id,
+        herd_id=herd.id,
+        media_url="https://example.com/a12.jpg",
+        tags=["health"],
+    )
+
+    store.create_farm(farm)
+    store.upsert_land_unit(pasture)
+    store.upsert_land_unit(paddock)
+    store.create_herd(herd)
+    store.create_animal(animal)
+    store.record_observation(observation)
+
+    pasture_feed = store.list_activity_feed(farm.id, "pasture", pasture.id)
+    paddock_feed = store.list_activity_feed(farm.id, "paddock", paddock.id)
+    herd_feed = store.list_activity_feed(farm.id, "herd", herd.id)
+    animal_feed = store.list_animal_activity(animal.id)
+
+    assert any(event.event_type == "image_observation" for event in pasture_feed)
+    assert any(event.event_type == "image_observation" for event in paddock_feed)
+    assert any(event.event_type == "image_observation" for event in herd_feed)
+    assert any(event.event_type == "animal_created" for event in animal_feed)
+
+    manifest = build_profile_manifest(store, farm_id=farm.id, subject_type="pasture", subject_id=pasture.id)
+    assert manifest["type"] == "openpasture-profile-manifest"
+    assert manifest["activity_digest"]["total"] >= 1
+    assert manifest["timeline"]["containers"][0]["activities"]
