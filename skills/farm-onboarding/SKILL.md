@@ -15,13 +15,15 @@ Treat onboarding as a special workflow, not the normal daily operating mode.
 
 1. Create exactly one farm for the instance unless the operator explicitly asks for an admin override.
 2. Prefer `setup_initial_farm` for the common first-run path.
-3. Capture the farm name, timezone, first herd, and at least one paddock before ending onboarding.
-4. Set the herd's current paddock before generating the first morning brief.
-5. Accept flexible geospatial input such as screenshots, rough polygons, landmarks, and map clues.
-6. Convert those inputs into structured farm and paddock geometry when possible.
-7. When map screenshots, survey sketches, or farmer-drawn boxes are involved, load the `geo-onboarding` skill and persist draft boundaries with `save_geo_onboarding_draft`.
-8. If geometry is still uncertain, preserve the remaining location clues in onboarding notes rather than inventing precise coordinates.
-9. After setup is complete, switch back to normal daily operations and keep setup tools in the background.
+3. If a farm already exists for the instance, use onboarding to refine that farm's name, timezone, location, herds, and paddocks instead of trying to create a second farm.
+4. Capture the farm name, timezone, first herd, and at least one paddock before ending onboarding.
+5. Set the herd's current paddock before generating the first morning brief.
+6. Accept flexible geospatial input such as screenshots, rough polygons, landmarks, and map clues.
+7. Convert visible coordinates into a structured `location` object when possible. A screenshot or `location_hint` alone preserves notes, but it does not update the farm point.
+8. Convert boundary and paddock clues into structured geometry when possible.
+9. When map screenshots, survey sketches, or farmer-drawn boxes are involved, load the `geo-onboarding` skill and persist draft boundaries with `save_geo_onboarding_draft`.
+10. If geometry is still uncertain, preserve the remaining location clues in onboarding notes rather than inventing precise coordinates.
+11. After setup is complete, switch back to normal daily operations and keep setup tools in the background.
 
 ## Success Criteria
 

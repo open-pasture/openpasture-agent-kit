@@ -133,6 +133,36 @@ def test_save_onboarding_with_maps_pin_location_syncs_cloud_batches(monkeypatch)
     assert herd_record["currentPaddockId"] == "paddock_home"
 
 
+
+def test_save_onboarding_refines_existing_farm_without_duplicate_herds():
+    first = mcp_chatgpt_app.handle_save_farm_onboarding(
+        {
+            "name": "Elm Spring",
+            "timezone": "America/Chicago",
+            "location": {"type": "Point", "coordinates": [-95.1, 36.1]},
+            "herd": {"id": "herd_existing", "species": "cattle", "count": 18},
+            "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+        }
+    )
+
+    refined = mcp_chatgpt_app.handle_save_farm_onboarding(
+        {
+            "name": "Elm Spring Pastures",
+            "timezone": "America/Chicago",
+            "location_hint": "Screenshot shows the farm, but the coordinates are not visible.",
+            "herd": {"id": "herd_new", "species": "cattle", "count": 20},
+            "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+            "current_paddock_id": "paddock_home",
+        }
+    )
+
+    assert refined["status"] == "ok"
+    assert refined["farm"]["id"] == first["farm"]["id"]
+    assert refined["farm"]["name"] == "Elm Spring Pastures"
+    assert refined["farm"]["location"] == {"type": "Point", "coordinates": [-95.1, 36.1]}
+    assert [herd["id"] for herd in refined["herds"]] == ["herd_existing"]
+    assert refined["herds"][0]["current_paddock_id"] == "paddock_home"
+
 def test_record_starting_observation_refreshes_onboarding_summary():
     status = mcp_chatgpt_app.handle_save_farm_onboarding(
         {

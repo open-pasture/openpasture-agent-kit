@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 
 from openpasture.tools import farm
-from openpasture.tools._common import json_response, optional_str, parse_loose_int
+from openpasture.domain import Farm
+from openpasture.tools._common import json_response, optional_bool, optional_str, parse_loose_int
 
 _SETUP_INITIAL_FARM_EXAMPLE = {
     "name": "Willow Creek",
@@ -24,7 +25,14 @@ SETUP_INITIAL_FARM_SCHEMA = {
     "properties": {
         "name": {"type": "string", "description": "Farm name."},
         "timezone": {"type": "string", "description": "Farm timezone such as America/Chicago."},
-        "location": {"type": "object", "description": "Structured farm point geometry when known."},
+        "location": {
+            "type": "object",
+            "description": (
+                "Structured farm point geometry when visible coordinates are known. "
+                "Use GeoJSON Point coordinates in [longitude, latitude] order or a "
+                "{longitude, latitude} object."
+            ),
+        },
         "boundary": {"type": ["object", "array"], "description": "Structured farm boundary geometry when known."},
         "location_hint": {
             "type": "string",
@@ -166,6 +174,98 @@ def _infer_current_paddock_id(
     return None
 
 
+def _merge_notes(existing_notes: str, new_notes: str) -> str:
+    if not new_notes:
+        return existing_notes
+    if not existing_notes:
+        return new_notes
+    if new_notes in existing_notes:
+        return existing_notes
+    return f"{existing_notes}\n\n{new_notes}"
+
+
+def _resolve_existing_farm_for_onboarding(args: dict[str, object], store) -> Farm | None:
+    if optional_bool(args, "allow_additional_farm"):
+        return None
+
+    requested_farm_id = optional_str(args, "farm_id")
+    existing_farms = farm._list_existing_farms(store)
+    if requested_farm_id:
+        existing_farm = store.get_farm(requested_farm_id)
+        if existing_farm is not None:
+            return existing_farm
+        if existing_farms:
+            raise ValueError(
+                f"Farm '{requested_farm_id}' does not exist. Refine an existing farm or pass "
+                "'allow_additional_farm'=true for a rare admin/setup override."
+            )
+        return None
+
+    if not existing_farms:
+        return None
+    if len(existing_farms) == 1:
+        return existing_farms[0]
+
+    existing_names = ", ".join(item.name for item in existing_farms[:3])
+    raise ValueError(
+        "Multiple farms are already registered for this instance. Pass 'farm_id' to refine "
+        f"one existing farm or 'allow_additional_farm'=true for a rare admin/setup override. "
+        f"Existing farm(s): {existing_names}."
+    )
+
+
+def _update_existing_farm_for_onboarding(args: dict[str, object], existing_farm: Farm, store) -> Farm:
+    updates: dict[str, object] = {
+        "name": optional_str(args, "name"),
+        "timezone": optional_str(args, "timezone"),
+    }
+    if "boundary" in args:
+        updates["boundary"] = farm._parse_farm_boundary(args.get("boundary"))
+    if "location" in args:
+        updates["location"] = farm.parse_geo_point(args.get("location"))
+    if new_notes := farm._build_farm_notes(args):
+        updates["notes"] = _merge_notes(existing_farm.notes, new_notes)
+    if "water_sources" in args:
+        updates["water_sources"] = farm._build_water_sources(args)
+
+    store.update_farm(existing_farm.id, **updates)
+    farm.set_active_farm_id(existing_farm.id)
+    farm.schedule_farm_brief(existing_farm.id)
+    return store.get_farm(existing_farm.id) or existing_farm
+
+
+def _save_farm_for_onboarding(args: dict[str, object], herd_payload: dict[str, object]) -> tuple[str, str]:
+    store = farm.get_store()
+    existing_farm = _resolve_existing_farm_for_onboarding(args, store)
+    if existing_farm is None:
+        register_result = json.loads(farm.handle_register_farm({**args, "herd": herd_payload}))
+        return register_result["farm"]["id"], register_result["herds"][0]["id"]
+
+    updated_farm = _update_existing_farm_for_onboarding(args, existing_farm, store)
+    existing_herds = store.get_herds(updated_farm.id)
+    if existing_herds:
+        requested_herd_id = herd_payload.get("id")
+        matched_herd = next(
+            (item for item in existing_herds if isinstance(requested_herd_id, str) and item.id == requested_herd_id),
+            existing_herds[0],
+        )
+        return updated_farm.id, matched_herd.id
+
+    created_herds = farm._create_herds(store, updated_farm, {"herd": herd_payload})
+    if not created_herds:
+        raise ValueError("setup_initial_farm needs the first herd.")
+    return updated_farm.id, created_herds[0].id
+
+
+def _list_paddocks_for_inference(farm_id: str) -> list[dict[str, object]]:
+    store = farm.get_store()
+    return [
+        {"id": item.id, "name": item.name, "status": item.status}
+        for item in store.list_land_units(farm_id)
+        if item.unit_type in {"paddock", "section"}
+    ]
+
+
 def handle_setup_initial_farm(args: dict[str, object]) -> str:
     """Create the common alpha onboarding state in one tool call."""
 
@@ -178,7 +278,7 @@ def handle_setup_initial_farm(args: dict[str, object]) -> str:
         raise _missing_onboarding_args_error(missing=missing)
     herd_payload = _resolve_herd_payload(args)
 
-    register_payload = {
+    farm_payload = {
         key: args[key]
         for key in (
             "farm_id",
@@ -194,11 +294,8 @@ def handle_setup_initial_farm(args: dict[str, object]) -> str:
         )
         if key in args
     }
-    register_payload["herd"] = herd_payload
 
-    register_result = json.loads(farm.handle_register_farm(register_payload))
-    farm_id = register_result["farm"]["id"]
-    herd_id = register_result["herds"][0]["id"]
+    farm_id, herd_id = _save_farm_for_onboarding(farm_payload, herd_payload)
 
     created_paddocks: list[dict[str, object]] = []
     paddocks_payload = args.get("paddocks")
@@ -219,7 +316,12 @@ def handle_setup_initial_farm(args: dict[str, object]) -> str:
             paddock_result = json.loads(farm.handle_add_paddock(paddock_payload))
             created_paddocks.append(paddock_result["paddock"])
 
-    current_paddock_id = _infer_current_paddock_id(args, herd_payload, created_paddocks)
+    available_paddocks = _list_paddocks_for_inference(farm_id)
+    current_paddock_id = _infer_current_paddock_id(
+        args,
+        herd_payload,
+        created_paddocks or available_paddocks,
+    )
     if current_paddock_id is not None:
         farm.handle_set_herd_position({"herd_id": herd_id, "paddock_id": current_paddock_id})
 

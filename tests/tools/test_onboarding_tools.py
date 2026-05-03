@@ -164,6 +164,75 @@ def test_setup_initial_farm_preserves_chatgpt_extracted_maps_location():
     assert result["herds"][0]["current_paddock_id"] == "paddock_home"
 
 
+def test_setup_initial_farm_refines_existing_farm_without_duplicate_herds():
+    initialize()
+
+    first = json.loads(
+        handle_setup_initial_farm(
+            {
+                "name": "Elm Spring",
+                "timezone": "America/Chicago",
+                "location": {"type": "Point", "coordinates": [-95.1, 36.1]},
+                "herd": {"id": "herd_existing", "species": "cattle", "count": 18},
+                "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+            }
+        )
+    )
+
+    refined = json.loads(
+        handle_setup_initial_farm(
+            {
+                "name": "Duck River Farm",
+                "timezone": "America/Chicago",
+                "location": {"longitude": -95.2345, "latitude": 36.4567},
+                "herd": {"id": "herd_new", "species": "cattle", "count": 20},
+                "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+                "current_paddock_id": "paddock_home",
+            }
+        )
+    )
+
+    assert refined["farm"]["id"] == first["farm"]["id"]
+    assert refined["farm"]["name"] == "Duck River Farm"
+    assert refined["farm"]["location"] == {"type": "Point", "coordinates": [-95.2345, 36.4567]}
+    assert [herd["id"] for herd in refined["herds"]] == ["herd_existing"]
+    assert refined["herds"][0]["current_paddock_id"] == "paddock_home"
+
+
+def test_setup_initial_farm_preserves_existing_location_when_only_hint_is_passed():
+    initialize()
+
+    first = json.loads(
+        handle_setup_initial_farm(
+            {
+                "name": "Elm Spring",
+                "timezone": "America/Chicago",
+                "location": {"type": "Point", "coordinates": [-95.1, 36.1]},
+                "herd": {"id": "herd_existing", "species": "cattle", "count": 18},
+                "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+            }
+        )
+    )
+
+    refined = json.loads(
+        handle_setup_initial_farm(
+            {
+                "name": "Elm Spring Pastures",
+                "timezone": "America/Chicago",
+                "location_hint": "Screenshot shows a marker near the old barn, but no visible coordinates.",
+                "herd": {"id": "herd_existing", "species": "cattle", "count": 18},
+                "paddocks": [{"id": "paddock_home", "name": "Home", "status": "grazing"}],
+            }
+        )
+    )
+
+    assert refined["farm"]["id"] == first["farm"]["id"]
+    assert refined["farm"]["name"] == "Elm Spring Pastures"
+    assert refined["farm"]["location"] == {"type": "Point", "coordinates": [-95.1, 36.1]}
+    assert "no visible coordinates" in refined["farm"]["notes"]
+    assert len(refined["herds"]) == 1
+
+
 def test_setup_initial_farm_accepts_top_level_herd_aliases_and_loose_count():
     initialize()
 
