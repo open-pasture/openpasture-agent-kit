@@ -19,7 +19,6 @@ from openpasture.domain import (
     LandUnit,
     MovementDecision,
     Observation,
-    Paddock,
     WaterSource,
 )
 
@@ -56,10 +55,6 @@ def _normalize_convex_site_url(deployment_url: str) -> str:
 
 def _point(value: object) -> GeoPoint | None:
     return GeoPoint.from_geojson(value) if isinstance(value, dict) else None
-
-
-def _polygon(value: object) -> GeoPolygon | None:
-    return GeoPolygon.from_geojson(value) if isinstance(value, dict) else None
 
 
 def _feature(value: object) -> GeoFeature:
@@ -143,7 +138,6 @@ class ConvexStore:
                 "timezone": farm.timezone,
                 "boundary": farm.boundary.to_geojson() if farm.boundary else None,
                 "location": farm.location.to_geojson() if farm.location else None,
-                "paddockIds": farm.paddock_ids,
                 "herdIds": farm.herd_ids,
                 "waterSources": _serialize_water_sources(farm.water_sources),
                 "notes": farm.notes,
@@ -160,40 +154,10 @@ class ConvexStore:
             timezone=str(record["timezone"]),
             boundary=_boundary(record.get("boundary")),
             location=_point(record.get("location")),
-            paddock_ids=[str(item) for item in record.get("paddockIds", [])],
             herd_ids=[str(item) for item in record.get("herdIds", [])],
             water_sources=_water_sources(record.get("waterSources")),
             notes=str(record.get("notes") or ""),
             created_at=_datetime_from_text(str(record["createdAt"])),
-        )
-
-    def _paddock_record(self, paddock: Paddock) -> dict[str, object]:
-        return _compact(
-            {
-                "paddockId": paddock.id,
-                "farmId": paddock.farm_id,
-                "name": paddock.name,
-                "geometry": paddock.geometry.to_geojson(),
-                "areaHectares": paddock.area_hectares,
-                "notes": paddock.notes,
-                "status": paddock.status,
-            }
-        )
-
-    def _paddock_from_record(self, record: object) -> Paddock | None:
-        if not isinstance(record, dict):
-            return None
-        geometry = _polygon(record.get("geometry"))
-        if geometry is None:
-            raise ValueError("Convex paddock record is missing geometry.")
-        return Paddock(
-            id=str(record["paddockId"]),
-            farm_id=str(record["farmId"]),
-            name=str(record["name"]),
-            geometry=geometry,
-            area_hectares=record.get("areaHectares") if isinstance(record.get("areaHectares"), (int, float)) else None,
-            notes=str(record.get("notes") or ""),
-            status=str(record.get("status") or "resting"),
         )
 
     def _land_unit_record(self, land_unit: LandUnit) -> dict[str, object]:
@@ -436,7 +400,6 @@ class ConvexStore:
         key_map = {
             "name": "name",
             "timezone": "timezone",
-            "paddock_ids": "paddockIds",
             "herd_ids": "herdIds",
             "notes": "notes",
         }
@@ -451,16 +414,6 @@ class ConvexStore:
                 patch[key_map[key]] = value
         if patch:
             self._request("farms.update", {"farmId": farm_id, "patch": patch})
-
-    def get_paddock(self, paddock_id: str) -> Paddock | None:
-        return self._paddock_from_record(self._request("paddocks.get", {"paddockId": paddock_id}))
-
-    def list_paddocks(self, farm_id: str) -> list[Paddock]:
-        records = self._request("paddocks.list", {"farmId": farm_id})
-        return [paddock for item in records or [] if (paddock := self._paddock_from_record(item))]
-
-    def create_paddock(self, paddock: Paddock) -> str:
-        return str(self._request("paddocks.create", {"record": self._paddock_record(paddock)}))
 
     def get_land_unit(self, land_unit_id: str) -> LandUnit | None:
         return self._land_unit_from_record(self._request("landUnits.get", {"landUnitId": land_unit_id}))

@@ -21,7 +21,6 @@ from openpasture.domain import (
     LandUnit,
     MovementDecision,
     Observation,
-    Paddock,
     WaterSource,
 )
 
@@ -56,16 +55,8 @@ def _serialize_point(point: GeoPoint | None) -> str | None:
     return None if point is None else _json_dumps(point.to_geojson())
 
 
-def _serialize_polygon(polygon: GeoPolygon | None) -> str | None:
-    return None if polygon is None else _json_dumps(polygon.to_geojson())
-
-
 def _deserialize_point(value: str | None) -> GeoPoint | None:
     return None if not value else GeoPoint.from_geojson(json.loads(value))
-
-
-def _deserialize_polygon(value: str | None) -> GeoPolygon | None:
-    return None if not value else GeoPolygon.from_geojson(json.loads(value))
 
 
 def _serialize_geo_feature(feature: GeoFeature | None) -> str | None:
@@ -143,25 +134,10 @@ class SQLiteStore:
                     timezone TEXT NOT NULL,
                     boundary_geojson TEXT,
                     location_geojson TEXT,
-                    paddock_ids TEXT NOT NULL,
                     herd_ids TEXT NOT NULL,
                     water_sources TEXT NOT NULL,
                     notes TEXT NOT NULL,
                     created_at TEXT NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS paddocks (
-                    id TEXT PRIMARY KEY,
-                    farm_id TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    geometry TEXT NOT NULL,
-                    area_hectares REAL,
-                    notes TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    FOREIGN KEY(farm_id) REFERENCES farms(id)
                 )
                 """
             )
@@ -304,25 +280,10 @@ class SQLiteStore:
             timezone=row["timezone"],
             boundary=_deserialize_boundary(row["boundary_geojson"]),
             location=_deserialize_point(row["location_geojson"]),
-            paddock_ids=_json_loads(row["paddock_ids"], []),
             herd_ids=_json_loads(row["herd_ids"], []),
             water_sources=_deserialize_water_sources(row["water_sources"]),
             notes=row["notes"],
             created_at=_datetime_from_text(row["created_at"]),
-        )
-
-    def _paddock_from_row(self, row: sqlite3.Row) -> Paddock:
-        polygon = _deserialize_polygon(row["geometry"])
-        if polygon is None:
-            raise ValueError("Paddock geometry cannot be null.")
-        return Paddock(
-            id=row["id"],
-            farm_id=row["farm_id"],
-            name=row["name"],
-            geometry=polygon,
-            area_hectares=row["area_hectares"],
-            notes=row["notes"],
-            status=row["status"],
         )
 
     def _land_unit_from_row(self, row: sqlite3.Row) -> LandUnit:
@@ -463,9 +424,9 @@ class SQLiteStore:
             connection.execute(
                 """
                 INSERT INTO farms (
-                    id, name, timezone, boundary_geojson, location_geojson, paddock_ids,
+                    id, name, timezone, boundary_geojson, location_geojson,
                     herd_ids, water_sources, notes, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     farm.id,
@@ -473,7 +434,6 @@ class SQLiteStore:
                     farm.timezone,
                     _serialize_boundary(farm.boundary),
                     _serialize_point(farm.location),
-                    _json_dumps(farm.paddock_ids),
                     _json_dumps(farm.herd_ids),
                     _serialize_water_sources(farm.water_sources),
                     farm.notes,
@@ -491,7 +451,6 @@ class SQLiteStore:
             "timezone": "timezone",
             "boundary": "boundary_geojson",
             "location": "location_geojson",
-            "paddock_ids": "paddock_ids",
             "herd_ids": "herd_ids",
             "water_sources": "water_sources",
             "notes": "notes",
@@ -507,7 +466,7 @@ class SQLiteStore:
                 value = _serialize_boundary(value if isinstance(value, (GeoFeature, GeoPolygon)) else None)
             elif key == "location":
                 value = _serialize_point(value if isinstance(value, GeoPoint) else None)
-            elif key in {"paddock_ids", "herd_ids"}:
+            elif key == "herd_ids":
                 value = _json_dumps(value)
             elif key == "water_sources":
                 value = _serialize_water_sources(value if isinstance(value, list) else [])
@@ -523,39 +482,6 @@ class SQLiteStore:
                 f"UPDATE farms SET {', '.join(assignments)} WHERE id = ?",
                 tuple(values),
             )
-
-    def get_paddock(self, paddock_id: str) -> Paddock | None:
-        with self._connect() as connection:
-            row = connection.execute("SELECT * FROM paddocks WHERE id = ?", (paddock_id,)).fetchone()
-        return None if row is None else self._paddock_from_row(row)
-
-    def list_paddocks(self, farm_id: str) -> list[Paddock]:
-        with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT * FROM paddocks WHERE farm_id = ? ORDER BY name ASC",
-                (farm_id,),
-            ).fetchall()
-        return [self._paddock_from_row(row) for row in rows]
-
-    def create_paddock(self, paddock: Paddock) -> str:
-        with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO paddocks (id, farm_id, name, geometry, area_hectares, notes, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    paddock.id,
-                    paddock.farm_id,
-                    paddock.name,
-                    _serialize_polygon(paddock.geometry),
-                    paddock.area_hectares,
-                    paddock.notes,
-                    paddock.status,
-                ),
-            )
-            self._append_farm_reference(connection, paddock.farm_id, "paddock_ids", paddock.id)
-        return paddock.id
 
     def get_land_unit(self, land_unit_id: str) -> LandUnit | None:
         with self._connect() as connection:

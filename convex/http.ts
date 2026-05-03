@@ -33,8 +33,6 @@ function requireTenantKey(request: Request, payload: { tenantKey?: unknown }) {
 const queryOperations = new Set([
   "farms.list",
   "farms.get",
-  "paddocks.get",
-  "paddocks.list",
   "landUnits.get",
   "landUnits.list",
   "herds.list",
@@ -53,9 +51,6 @@ const functionByOperation: Record<string, unknown> = {
   "farms.get": anyApi.farmStore.getFarm,
   "farms.create": anyApi.farmStore.createFarm,
   "farms.update": anyApi.farmStore.updateFarm,
-  "paddocks.get": anyApi.farmStore.getPaddock,
-  "paddocks.list": anyApi.farmStore.listPaddocks,
-  "paddocks.create": anyApi.farmStore.createPaddock,
   "landUnits.get": anyApi.farmStore.getLandUnit,
   "landUnits.list": anyApi.farmStore.listLandUnits,
   "landUnits.upsert": anyApi.farmStore.upsertLandUnit,

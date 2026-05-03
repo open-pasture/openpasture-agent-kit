@@ -93,17 +93,17 @@ def test_registered_handlers_accept_hermes_kwargs(monkeypatch):
     )
     assert state_result["farm"]["id"] == farm_id
 
-    ctx.tools["add_paddock"](
+    ctx.tools["upsert_land_unit"](
         task_id="task_paddock_maintenance",
         farm_id=farm_id,
-        paddock_id="paddock_spare",
+        id="paddock_spare",
+        unit_type="paddock",
         name="Spare",
         status="resting",
-        geometry=[
-            {"longitude": -95.24, "latitude": 36.2},
-            {"longitude": -95.25, "latitude": 36.2},
-            {"longitude": -95.25, "latitude": 36.21},
-        ],
+        geometry={
+            "type": "Polygon",
+            "coordinates": [[[-95.24, 36.2], [-95.25, 36.2], [-95.25, 36.21], [-95.24, 36.2]]],
+        },
     )
     ctx.tools["record_observation"](
         task_id="task_observation",

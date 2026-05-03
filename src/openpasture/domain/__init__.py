@@ -1,7 +1,7 @@
 """Domain primitives for openPasture."""
 
 from .action import FarmerAction
-from .farm import Farm, Herd, LandUnit, Paddock, Pasture, Section, WaterSource
+from .farm import Farm, Herd, LandUnit, Pasture, Section, WaterSource
 from .geo import BoundingBox, GeoFeature, GeoPoint, GeoPolygon
 from .knowledge import KnowledgeEntry, KnowledgeType, SourceRecord
 from .observation import (
@@ -32,7 +32,6 @@ __all__ = [
     "Observation",
     "ObservationSource",
     "ObservationWindow",
-    "Paddock",
     "Pasture",
     "Section",
     "SourceRecord",

@@ -116,15 +116,17 @@ def test_save_onboarding_with_maps_pin_location_syncs_cloud_batches(monkeypatch)
     assert "Google Maps screenshot" in status["farm"]["notes"]
     assert status["cloud_sync"]["status"] == "ok"
 
-    assert [batch["table"] for batch in captured_batches] == ["farms", "paddocks", "herds"]
+    assert [batch["table"] for batch in captured_batches] == ["farms", "landUnits", "herds"]
     farm_record = captured_batches[0]["records"][0]
     assert farm_record["agentFarmId"] == status["farm"]["id"]
     assert farm_record["location"] == {"type": "Point", "coordinates": [-95.2345, 36.4567]}
     assert farm_record["notes"] == status["farm"]["notes"]
 
     paddock_record = captured_batches[1]["records"][0]
-    assert paddock_record["agentPaddockId"] == "paddock_home"
-    assert paddock_record["geometry"]["type"] == "Polygon"
+    assert paddock_record["agentLandUnitId"] == "paddock_home"
+    assert paddock_record["unitType"] == "paddock"
+    assert paddock_record["geometry"]["type"] == "Feature"
+    assert paddock_record["geometry"]["geometry"]["type"] == "Polygon"
 
     herd_record = captured_batches[2]["records"][0]
     assert herd_record["agentHerdId"] == "herd_maps"

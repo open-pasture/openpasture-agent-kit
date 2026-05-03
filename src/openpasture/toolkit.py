@@ -79,15 +79,6 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         related_skills=("farm-onboarding",),
     ),
     ToolSpec(
-        name="add_paddock",
-        schema=farm.ADD_PADDOCK_SCHEMA,
-        handler=farm.handle_add_paddock,
-        description="Add a paddock during onboarding or maintenance.",
-        tags=("farm", "paddock", "setup"),
-        emoji="🗺️",
-        related_skills=("farm-onboarding",),
-    ),
-    ToolSpec(
         name="save_geo_onboarding_draft",
         schema=geo.SAVE_GEO_ONBOARDING_DRAFT_SCHEMA,
         handler=geo.handle_save_geo_onboarding_draft,
@@ -140,7 +131,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         schema=farm.GET_FARM_STATE_SCHEMA,
         handler=farm.handle_get_farm_state,
         description=(
-            "Get the current farm snapshot with herds, paddocks, recent observations, "
+            "Get the current farm snapshot with herds, land units, recent observations, "
             "and latest plan. farm_id is optional when one farm is active."
         ),
         tags=("farm", "context"),

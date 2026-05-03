@@ -390,6 +390,7 @@ def _summary_from_state(state: dict[str, Any]) -> dict[str, Any]:
     farm = state.get("farm") if isinstance(state.get("farm"), dict) else None
     herds = state.get("herds") if isinstance(state.get("herds"), list) else []
     paddocks = state.get("paddocks") if isinstance(state.get("paddocks"), list) else []
+    land_units = state.get("land_units") if isinstance(state.get("land_units"), list) else []
     recent_observations = (
         state.get("recent_observations") if isinstance(state.get("recent_observations"), list) else []
     )
@@ -406,6 +407,7 @@ def _summary_from_state(state: dict[str, Any]) -> dict[str, Any]:
         "onboarding_status": onboarding_status,
         "farm": farm,
         "herds": herds,
+        "land_units": land_units,
         "paddocks": paddocks,
         "latest_plan": state.get("latest_plan"),
         "recent_observations": recent_observations,
@@ -443,6 +445,7 @@ def handle_get_onboarding_status(args: dict[str, object] | None = None) -> dict[
             },
             "farm": None,
             "herds": [],
+            "land_units": [],
             "paddocks": [],
             "latest_plan": None,
             "recent_observations": [],
@@ -560,6 +563,7 @@ def app_tool_payload() -> list[dict[str, Any]]:
                     "onboarding_status": {"type": "object"},
                     "farm": {"type": ["object", "null"]},
                     "herds": {"type": "array"},
+                    "land_units": {"type": "array"},
                     "paddocks": {"type": "array"},
                     "recent_observations": {"type": "array"},
                     "missing": {"type": "array", "items": {"type": "string"}},
@@ -709,6 +713,7 @@ def build_chatgpt_app_server(name: str = "OpenPasture Farm Onboarding", **settin
         onboarding_status: dict[str, Any] | None = None,
         farm: dict[str, Any] | None = None,
         herds: list[dict[str, Any]] | None = None,
+        land_units: list[dict[str, Any]] | None = None,
         paddocks: list[dict[str, Any]] | None = None,
         recent_observations: list[dict[str, Any]] | None = None,
         missing: list[str] | None = None,
@@ -718,6 +723,7 @@ def build_chatgpt_app_server(name: str = "OpenPasture Farm Onboarding", **settin
             "onboarding_status": onboarding_status,
             "farm": farm,
             "herds": herds,
+            "land_units": land_units,
             "paddocks": paddocks,
             "recent_observations": recent_observations,
             "missing": missing,

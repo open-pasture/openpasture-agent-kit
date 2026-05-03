@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from openpasture.domain import Farm, GeoPolygon, Herd, Paddock, WaterSource
+from openpasture.domain import Farm, GeoFeature, GeoPolygon, Herd, LandUnit, WaterSource
 from openpasture.context import get_store, resolve_farm_id, schedule_farm_brief, set_active_farm_id
 from openpasture.tools._common import (
     json_response,
     make_id,
     optional_bool,
-    optional_float,
     optional_str,
     parse_geo_feature,
     parse_loose_int,
@@ -116,6 +115,21 @@ def _parse_farm_boundary(value: object):
         return parse_geo_polygon(value)
 
 
+def _parse_land_unit_geometry(*values: object) -> GeoFeature:
+    for value in values:
+        if value is None:
+            continue
+        try:
+            feature = parse_geo_feature(value)
+            if feature is not None:
+                return feature
+        except ValueError:
+            polygon = parse_geo_polygon(value)
+            if polygon is not None:
+                return GeoFeature.from_geojson(polygon.to_geojson())
+    return GeoFeature.from_geojson({"type": "Polygon", "coordinates": [[[0, 0], [0.0001, 0], [0.0001, 0.0001], [0, 0]]]})
+
+
 def _build_herd_payloads(args: dict[str, object]) -> list[dict[str, object]]:
     herds_payload: list[dict[str, object]] = []
     herd = args.get("herd")
@@ -193,19 +207,20 @@ def handle_register_farm(args: dict[str, object]) -> str:
 
 
 def handle_add_paddock(args: dict[str, object]) -> str:
-    """Add a paddock to an existing farm."""
+    """Add a paddock land unit to an existing farm."""
     store = get_store()
     farm_id = require_str(args, "farm_id")
-    paddock = Paddock(
-        id=optional_str(args, "paddock_id") or make_id("paddock"),
+    paddock = LandUnit(
+        id=optional_str(args, "paddock_id") or optional_str(args, "land_unit_id") or make_id("paddock"),
         farm_id=farm_id,
+        unit_type="paddock",
         name=require_str(args, "name"),
-        geometry=parse_geo_polygon(args.get("geometry")) or parse_geo_polygon(args.get("boundary")) or GeoPolygon(),
-        area_hectares=optional_float(args, "area_hectares"),
+        geometry=_parse_land_unit_geometry(args.get("geometry"), args.get("boundary")),
+        parent_id=optional_str(args, "parent_id"),
         notes=optional_str(args, "notes") or "",
         status=optional_str(args, "status") or "resting",
     )
-    store.create_paddock(paddock)
+    store.upsert_land_unit(paddock)
     set_active_farm_id(farm_id)
     return json_response(status="ok", paddock=paddock)
 
@@ -217,7 +232,8 @@ def handle_get_farm_state(args: dict[str, object]) -> str:
     farm = store.get_farm(farm_id)
     if farm is None:
         raise ValueError(f"Farm '{farm_id}' does not exist.")
-    paddocks = store.list_paddocks(farm_id)
+    land_units = store.list_land_units(farm_id)
+    paddocks = [unit for unit in land_units if unit.unit_type in {"paddock", "section"}]
     herds = store.get_herds(farm_id)
     recent_observations = store.get_recent_observations(farm_id, days=7)
     latest_plan = store.get_latest_plan(farm_id)
@@ -225,6 +241,7 @@ def handle_get_farm_state(args: dict[str, object]) -> str:
     return json_response(
         status="ok",
         farm=farm,
+        land_units=land_units,
         paddocks=paddocks,
         herds=herds,
         recent_observations=recent_observations,
@@ -237,8 +254,8 @@ def handle_set_herd_position(args: dict[str, object]) -> str:
     store = get_store()
     herd_id = require_str(args, "herd_id")
     paddock_id = require_str(args, "paddock_id")
-    paddock = store.get_paddock(paddock_id)
-    if paddock is None:
+    paddock = store.get_land_unit(paddock_id)
+    if paddock is None or paddock.unit_type not in {"paddock", "section"}:
         raise ValueError(f"Paddock '{paddock_id}' does not exist.")
 
     herds = store.get_herds(paddock.farm_id)

@@ -16,7 +16,6 @@ const farmRecord = v.object({
   timezone: v.string(),
   boundary: v.optional(v.any()),
   location: v.optional(v.any()),
-  paddockIds: v.array(v.string()),
   herdIds: v.array(v.string()),
   waterSources: v.array(v.any()),
   notes: v.string(),
@@ -28,20 +27,9 @@ const farmPatch = v.object({
   timezone: v.optional(v.string()),
   boundary: v.optional(v.any()),
   location: v.optional(v.any()),
-  paddockIds: v.optional(v.array(v.string())),
   herdIds: v.optional(v.array(v.string())),
   waterSources: v.optional(v.array(v.any())),
   notes: v.optional(v.string()),
-});
-
-const paddockRecord = v.object({
-  paddockId: v.string(),
-  farmId: v.string(),
-  name: v.string(),
-  geometry: v.any(),
-  areaHectares: v.optional(v.number()),
-  notes: v.string(),
-  status: v.string(),
 });
 
 const landUnitRecord = v.object({
@@ -177,7 +165,7 @@ async function appendFarmReference(
   ctx: any,
   tenantKey: string,
   farmId: string,
-  field: "paddockIds" | "herdIds",
+  field: "herdIds",
   value: string,
 ) {
   const farm = await ctx.db
@@ -234,36 +222,6 @@ export const updateFarm = mutation({
     if (!farm) throw new Error(`Farm '${args.farmId}' does not exist.`);
     await ctx.db.patch(farm._id, cleanPatch(args.patch));
     return true;
-  },
-});
-
-export const getPaddock = query({
-  args: { tenantKey: v.string(), paddockId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("paddocks")
-      .withIndex("by_tenant_key_and_paddock_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("paddockId", args.paddockId))
-      .unique();
-  },
-});
-
-export const listPaddocks = query({
-  args: { tenantKey: v.string(), farmId: v.string() },
-  handler: async (ctx, args) => {
-    const paddocks = await ctx.db
-      .query("paddocks")
-      .withIndex("by_tenant_key_and_farm_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId))
-      .take(500);
-    return paddocks.sort((left, right) => left.name.localeCompare(right.name));
-  },
-});
-
-export const createPaddock = mutation({
-  args: { tenantKey: v.string(), record: paddockRecord },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("paddocks", { tenantKey: args.tenantKey, ...args.record });
-    await appendFarmReference(ctx, args.tenantKey, args.record.farmId, "paddockIds", args.record.paddockId);
-    return args.record.paddockId;
   },
 });
 

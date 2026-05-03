@@ -7,7 +7,7 @@ from datetime import date, datetime
 from logging import getLogger
 
 from openpasture.briefing.attention_director import AttentionDirector
-from openpasture.domain import DailyBrief, Farm, Herd, KnowledgeEntry, MovementDecision, Observation, Paddock
+from openpasture.domain import DailyBrief, Farm, Herd, KnowledgeEntry, LandUnit, MovementDecision, Observation
 from openpasture.domain.observation import is_field_observation_source
 from openpasture.ingestion.weather import WeatherObservationPipeline
 from openpasture.knowledge.retriever import KnowledgeRetriever
@@ -23,7 +23,7 @@ class MorningBriefContext:
 
     farm: Farm
     herds: list[Herd]
-    paddocks: list[Paddock]
+    paddocks: list[LandUnit]
     recent_observations: list[Observation]
     weather_observations: list[Observation]
     relevant_knowledge: list[KnowledgeEntry]
@@ -42,7 +42,7 @@ class MorningBriefAssembler:
         self.retriever = retriever or get_knowledge()
         self.attention_director = attention_director or AttentionDirector(self.store)
 
-    def _choose_target_paddock(self, paddocks: list[Paddock], current_paddock_id: str | None) -> Paddock | None:
+    def _choose_target_paddock(self, paddocks: list[LandUnit], current_paddock_id: str | None) -> LandUnit | None:
         candidates = [paddock for paddock in paddocks if paddock.id != current_paddock_id]
         if not candidates:
             return None
@@ -107,7 +107,11 @@ class MorningBriefAssembler:
         return MorningBriefContext(
             farm=farm,
             herds=self.store.get_herds(farm_id),
-            paddocks=self.store.list_paddocks(farm_id),
+            paddocks=[
+                unit
+                for unit in self.store.list_land_units(farm_id)
+                if unit.unit_type in {"paddock", "section"}
+            ],
             recent_observations=recent_observations,
             weather_observations=weather_observations,
             relevant_knowledge=relevant_knowledge,

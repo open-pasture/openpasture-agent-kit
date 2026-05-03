@@ -224,7 +224,11 @@ def _resolve_context_farm() -> Any | None:
 
 def _onboarding_gaps(farm_id: str) -> list[str]:
     store = get_store()
-    paddocks = store.list_paddocks(farm_id)
+    paddocks = [
+        unit
+        for unit in store.list_land_units(farm_id)
+        if unit.unit_type in {"paddock", "section"}
+    ]
     herds = store.get_herds(farm_id)
     gaps: list[str] = []
     if not herds:
@@ -332,7 +336,11 @@ def build_session_context(*, include_workflow_guidance: bool = True) -> str:
 
     store = get_store()
     farm_id = farm.id
-    paddocks = store.list_paddocks(farm_id)
+    paddocks = [
+        unit
+        for unit in store.list_land_units(farm_id)
+        if unit.unit_type in {"paddock", "section"}
+    ]
     herds = store.get_herds(farm_id)
     pipelines = _list_pipelines_safe(farm_id)
     latest_plan = store.get_latest_plan(farm_id)

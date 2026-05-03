@@ -100,8 +100,8 @@ def handle_get_paddock_state(args: dict[str, object]) -> str:
     """Return the state of a single paddock for reasoning and planning."""
     store = get_store()
     paddock_id = require_str(args, "paddock_id")
-    paddock = store.get_paddock(paddock_id)
-    if paddock is None:
+    paddock = store.get_land_unit(paddock_id)
+    if paddock is None or paddock.unit_type not in {"paddock", "section"}:
         raise ValueError(f"Paddock '{paddock_id}' does not exist.")
     observations = store.get_paddock_observations(paddock_id, days=7)
     set_active_farm_id(paddock.farm_id)

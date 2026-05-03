@@ -11,7 +11,7 @@ from urllib import request as urllib_request
 from openpasture.context import get_store
 from openpasture.tools._common import serialize_value
 
-SYNC_TABLE_ORDER = ("farms", "paddocks", "landUnits", "herds", "observations")
+SYNC_TABLE_ORDER = ("farms", "landUnits", "herds", "observations")
 LAND_UNIT_SYNC_TYPES = {"pasture", "paddock", "section", "no_graze_zone", "water_area"}
 
 
@@ -139,28 +139,6 @@ def build_onboarding_sync_batches(
     )
 
     _append_land_unit_batches(batches, summary, agent_farm_id=agent_farm_id, timestamp=timestamp)
-
-    paddocks = summary.get("paddocks") if isinstance(summary.get("paddocks"), list) else []
-    for paddock in paddocks:
-        if not isinstance(paddock, dict):
-            continue
-        agent_paddock_id = _string(paddock.get("id"))
-        if agent_paddock_id is None:
-            continue
-        batches["paddocks"].append(
-            _compact(
-                {
-                    "agentFarmId": agent_farm_id,
-                    "agentPaddockId": agent_paddock_id,
-                    "name": _string(paddock.get("name")) or "Paddock",
-                    "geometry": paddock.get("geometry"),
-                    "areaHectares": _number(paddock.get("area_hectares")),
-                    "notes": _string(paddock.get("notes")),
-                    "status": _string(paddock.get("status")) or "resting",
-                    "syncedAt": timestamp,
-                }
-            )
-        )
 
     herds = summary.get("herds") if isinstance(summary.get("herds"), list) else []
     for herd in herds:

@@ -13,7 +13,6 @@ from openpasture.domain import (
     LandUnit,
     MovementDecision,
     Observation,
-    Paddock,
 )
 from openpasture.store.sqlite import SQLiteStore
 
@@ -39,16 +38,16 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
             ]
         ),
     )
-    paddock = Paddock(
+    paddock = LandUnit(
         id="paddock_1",
         farm_id=farm.id,
+        unit_type="paddock",
         name="North 40",
-        geometry=GeoPolygon(
-            coordinates=[
-                GeoPoint(-95.21, 36.21),
-                GeoPoint(-95.22, 36.21),
-                GeoPoint(-95.22, 36.22),
-            ]
+        geometry=GeoFeature.from_geojson(
+            {
+                "type": "Polygon",
+                "coordinates": [[[-95.21, 36.21], [-95.22, 36.21], [-95.22, 36.22], [-95.21, 36.21]]],
+            }
         ),
         status="resting",
     )
@@ -87,7 +86,7 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
     )
 
     assert store.create_farm(farm) == farm.id
-    assert store.create_paddock(paddock) == paddock.id
+    assert store.upsert_land_unit(paddock) == paddock.id
     assert store.create_herd(herd) == herd.id
     assert store.record_observation(observation) == observation.id
     assert store.create_plan(plan) == plan.id
@@ -95,10 +94,10 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
     loaded_farm = store.get_farm(farm.id)
     assert loaded_farm is not None
     assert loaded_farm.location == farm.location
-    assert loaded_farm.paddock_ids == [paddock.id]
     assert loaded_farm.herd_ids == [herd.id]
 
-    assert store.get_paddock(paddock.id) is not None
+    assert store.get_land_unit(paddock.id) is not None
+    assert store.list_land_units(farm.id, unit_type="paddock")[0].id == paddock.id
     assert store.get_herds(farm.id)[0].current_paddock_id == paddock.id
     assert store.get_recent_observations(farm.id, days=7)[0].id == observation.id
     assert store.get_paddock_observations(paddock.id, days=7)[0].id == observation.id

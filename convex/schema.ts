@@ -9,26 +9,12 @@ export default defineSchema({
     timezone: v.string(),
     boundary: v.optional(v.any()),
     location: v.optional(v.any()),
-    paddockIds: v.array(v.string()),
     herdIds: v.array(v.string()),
     waterSources: v.array(v.any()),
     notes: v.string(),
     createdAt: v.string(),
   })
     .index("by_tenant_key", ["tenantKey"])
-    .index("by_tenant_key_and_farm_id", ["tenantKey", "farmId"]),
-
-  paddocks: defineTable({
-    tenantKey: v.string(),
-    paddockId: v.string(),
-    farmId: v.string(),
-    name: v.string(),
-    geometry: v.any(),
-    areaHectares: v.optional(v.number()),
-    notes: v.string(),
-    status: v.string(),
-  })
-    .index("by_tenant_key_and_paddock_id", ["tenantKey", "paddockId"])
     .index("by_tenant_key_and_farm_id", ["tenantKey", "farmId"]),
 
   landUnits: defineTable({
@@ -58,7 +44,8 @@ export default defineSchema({
   })
     .index("by_tenant_key_and_land_unit_id", ["tenantKey", "landUnitId"])
     .index("by_tenant_key_and_farm_id", ["tenantKey", "farmId"])
-    .index("by_tenant_key_farm_and_type", ["tenantKey", "farmId", "unitType"]),
+    .index("by_tenant_key_farm_and_type", ["tenantKey", "farmId", "unitType"])
+    .index("by_tenant_key_farm_and_parent", ["tenantKey", "farmId", "parentId"]),
 
   herds: defineTable({
     tenantKey: v.string(),

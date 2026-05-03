@@ -22,19 +22,6 @@ class WaterSource:
 
 
 @dataclass(slots=True)
-class Paddock:
-    """A bounded grazing unit within a farm."""
-
-    id: str
-    farm_id: str
-    name: str
-    geometry: GeoPolygon
-    area_hectares: float | None = None
-    notes: str = ""
-    status: str = "resting"
-
-
-@dataclass(slots=True)
 class LandUnit:
     """A versioned geospatial management unit within a farm."""
 
@@ -97,7 +84,6 @@ class Farm:
     timezone: str
     boundary: GeoFeature | GeoPolygon | None = None
     location: GeoPoint | None = None
-    paddock_ids: list[str] = field(default_factory=list)
     herd_ids: list[str] = field(default_factory=list)
     water_sources: list[WaterSource] = field(default_factory=list)
     notes: str = ""
