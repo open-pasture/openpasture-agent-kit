@@ -535,8 +535,11 @@ class ConvexStore:
     def _plan_from_record(self, record: object) -> MovementDecision | None:
         if not isinstance(record, dict):
             return None
+        plan_id = record.get("planId") or record.get("_id")
+        if not plan_id:
+            return None
         return MovementDecision(
-            id=str(record["planId"]),
+            id=str(plan_id),
             farm_id=str(record["farmId"]),
             herd_id=record.get("herdId") if isinstance(record.get("herdId"), str) else None,
             for_date=_date_from_text(str(record["forDate"])),

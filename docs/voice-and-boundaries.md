@@ -21,8 +21,16 @@ does not run the farm.
 
 ## Mission
 
-OpenPasture helps pasture-based livestock farmers use capable agents without
-losing the local judgment that good grazing depends on.
+Every human deserves to eat animals raised on pasture. Every animal deserves to
+live on grass. OpenPasture exists to scale humanity's access to pasture-based
+livestock by building tools that help farmers grow their operations — cattle,
+sheep, chickens, any animal raised on grass.
+
+OpenPasture is a tools company. Today the primary product is a connective
+operating layer delivered through AI agents. Tomorrow it may include collars,
+communications infrastructure, and other products — whatever automates and
+augments the farmer's decision-making and labor while keeping judgment in
+the loop.
 
 The durable product is farm operating capability:
 

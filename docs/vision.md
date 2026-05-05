@@ -2,9 +2,18 @@
 
 ## Founding Principle
 
-The coding agent is becoming the core software primitive. Domain products should increasingly look like portable packages of tools, knowledge, skills, data integrations, and operating opinions that equip an agent to do useful work.
+Every human deserves to eat animals raised on pasture. Every animal deserves to
+live on grass. OpenPasture exists to scale humanity's access to pasture-based
+livestock by building tools that help farmers grow their operations.
 
-`openPasture` applies that idea to pasture-based livestock farming. This repository is the agent kit for that product suite.
+OpenPasture is a tools company. Today the primary product is a connective
+operating layer delivered through AI agents — portable packages of tools,
+knowledge, skills, data integrations, and operating opinions that equip an agent
+to do useful work on a pasture-based farm. Tomorrow the product may extend to
+collars, communications infrastructure, and other hardware and software that
+automates and augments the farmer's decision-making and labor.
+
+This repository is the agent kit — the first product in that suite.
 
 ## Product Thesis
 
@@ -41,8 +50,14 @@ The farmer remains the operator. The agent extends attention, memory, and execut
 - dashboard-first SaaS workflows,
 - a proprietary-only cloud core.
 
-Those may matter later. The durable foundation is a toolkit that any qualified agent can use.
+These are future ambitions, not dismissed categories. Collars, communications
+infrastructure, and field hardware are part of the long-term vision — but the
+durable foundation comes first: a toolkit that any qualified agent can use to
+help a farmer manage livestock on pasture.
 
 ## Success
 
-The product succeeds when a farmer can connect an agent and say: "This understands my land, remembers my operation, and helps me make better calls without taking judgment away from me."
+The product succeeds when more animals live on grass and more people can afford
+to eat them. At the farm level, that means a farmer can connect an agent and
+say: "This understands my land, remembers my operation, and helps me make better
+calls without taking judgment away from me."
