@@ -28,6 +28,7 @@ version: 1.0.0
 ## Collection Goal
 
 - Collect the single best daily photo that shows grass height against the measuring stick in the WSN SL research plot.
+- The observation is a direct field signal. The daily decision should weigh it above imagery when the two disagree.
 
 ## Gotchas
 

@@ -32,7 +32,7 @@ When editing files in `docs-site/`:
 - This docs site is for the public OSS agent kit only.
 - Do not document internal cloud repo code, web repo code, or multi-repo architecture.
 - The hosted cloud page should only explain what the hosted product adds on top of the OSS kit.
-- All copy must follow the OpenPasture voice: plain, practical, farmer-to-farmer, uncertainty-aware, no overclaimed autonomy.
+- All copy must follow the Openpasture voice: plain, practical, farmer-to-farmer, uncertainty-aware, no overclaimed autonomy.
 
 ## Validation
 

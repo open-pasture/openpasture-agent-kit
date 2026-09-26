@@ -1,0 +1,88 @@
+---
+title: "Collars"
+description: "How Openpasture reads herd positions and sends boundaries to OpenCollar virtual-fence collars."
+icon: "radio"
+---
+
+# Collars
+
+OpenCollar collars report where each animal is and hold the boundary the herd
+is allowed in. Fence logic runs on the collar. Openpasture reads what the
+collars report and, when a decision and the farmer's autonomy setting allow
+it, sends them a new boundary.
+
+## What collars send
+
+Position reports carry fixes (time, point, accuracy, activity), cue events,
+and battery. They come in through `record_collar_report`. Read recent
+positions with `get_herd_positions`.
+
+Raw fixes are kept for a retention window. The engine rolls them into
+summaries per herd and paddock, which feed grazing pressure and behavior
+signals.
+
+## What Openpasture sends
+
+A boundary command carries:
+
+- the full boundary polygon the collar enforces,
+- `exclusions` inside it the herd must stay out of, such as a pond edge or a
+  creek bank,
+- an optional `transition`: `open_then_close` opens a corridor so animals
+  walking the right way are not cued, then closes to the new boundary after a
+  set time. `immediate` skips it,
+- a `version` that increases with every command. A collar ignores anything
+  older than what it holds.
+
+Every command comes from a recorded decision. Nothing else sends boundaries.
+
+## Confirmation
+
+Each collar acknowledges with `received`, `applied`, or `rejected` and a
+reason. A boundary is active only once enough collars confirm it. Check with
+`get_boundary_status`.
+
+The engine always says what was sent and whether it was confirmed, for
+example:
+
+```text
+Sent the Paddock 4 boundary (version 42) to 28 collars at 7:30.
+26 applied. oc_0017 and oc_0021 have not confirmed.
+```
+
+Collars that did not confirm are named, so the farmer can check battery,
+signal, or an animal out of range.
+
+## Gateways
+
+| Gateway | What it does |
+| --- | --- |
+| `simulated` (default) | Simulates positions and acknowledgements. Nothing reaches a real collar. |
+| `http` | Sends commands to a collar gateway at `OPENPASTURE_COLLAR_GATEWAY_URL` and reads acknowledgements back. |
+
+Set with `OPENPASTURE_COLLAR_GATEWAY`. See
+[Environment Variables](/environment-variables).
+
+<Warning>
+  Switching to `http` means boundaries can reach real animals. Start with the
+  herd on `propose` autonomy and watch a few confirmed moves before loosening
+  it.
+</Warning>
+
+## Without collars
+
+A herd does not need collars. The engine still makes and records decisions,
+and the farmer moves the herd by hand. Answer each decision with
+`respond_to_decision` so the record shows what you actually did.
+
+## Other vendors
+
+Other virtual-fence systems can be supported by implementing the collar
+connector interface. A web data pipeline against another vendor's app is
+read-only: it can bring positions in as observations but cannot send
+boundaries.
+
+Collar hardware, firmware, and the collar protocol live in the `opencollar`
+repository.
+
+Source docs: `docs/contracts.md` and `docs/architecture.md`.

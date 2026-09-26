@@ -1,7 +1,7 @@
 # AGENTS.md
 
 This file is the primary reference for coding agents working anywhere in the
-OpenPasture project. The agent kit is the canonical source of truth for product
+Openpasture project. The agent kit is the canonical source of truth for product
 behavior, voice, boundaries, and agent instructions.
 
 ## Session Onboarding
@@ -12,7 +12,8 @@ Every new agent session should do this before changing code, docs, or copy:
 2. `docs/voice-and-boundaries.md`
 3. `docs/vision.md`
 4. `docs/architecture.md`
-5. The local `AGENTS.md` in the repository being changed, if one exists.
+5. `docs/contracts.md`
+6. The local `AGENTS.md` in the repository being changed, if one exists.
 
 Then decide where the change belongs:
 
@@ -29,18 +30,23 @@ If a future agent would need to know something again, write it here or in
 
 ## Core Principle
 
-The coding agent is the core primitive. `openPasture` is the product suite. This repository is the portable agent kit that equips an agent with pasture-based livestock expertise, farm state, executable tools, skills, and integrations.
+Openpasture is the data and decision layer between Alexandria, which knows the
+land, and OpenCollar, which knows where the animals are and moves them. Every
+day, for every herd, the engine decides whether to move the herd and where, and
+sends the answer to the collars. This repository is that engine, packaged as a
+portable agent kit.
 
 Hermes is one supported connector. It is not the product boundary.
 
 ## Voice And Product Boundary
 
-This repository is the canonical public source of truth for OpenPasture voice,
+This repository is the canonical public source of truth for Openpasture voice,
 mission, tone, product boundaries, and agent instructions.
 
-Use plain farmer-to-farmer language. Do not overclaim autonomy. The agent can
-help observe, remember, reason, run tools, and prepare recommendations, but the
-farmer remains the operator.
+Use plain farmer-to-farmer language. Do not overclaim autonomy. The engine
+decides and can move the herd, but only as far as the farmer's autonomy setting
+allows. The farmer remains the operator, and an override is always recorded as
+signal, never treated as an error.
 
 Keep the repository split clear:
 
@@ -48,15 +54,19 @@ Keep the repository split clear:
 - `openpasture-cloud`: hosted revenue product, accounts, auth, provisioning,
   proprietary dashboard, billing, and support.
 - `openpasture-web`: closed marketing site and public positioning.
+- `opencollar`: collar hardware, firmware, and the collar protocol.
 
 ## Core User Flow
 
-1. Farmer chats with an agent through their preferred surface.
-2. The agent uses openPasture tools, skills, and knowledge to assemble farm context.
-3. The agent answers questions, records observations, or produces a morning brief.
-4. Recommendations are `MOVE`, `STAY`, or `NEEDS_INFO`.
-5. When uncertainty is high, the agent asks for the single most useful observation.
-6. Farmer feedback becomes future context.
+1. Each decision window, the engine assembles context: collar positions, an
+   Alexandria land report, the farm's grazing history, and relevant knowledge.
+2. The agent reasons over that context through tools and skills.
+3. The decision is `STAY`, `MOVE` to a specific boundary, or `NEEDS_INFO`, with
+   reasoning and confidence.
+4. When uncertainty is high, the agent asks for the single most useful observation.
+5. The farmer approves, modifies, or overrides, as their autonomy setting requires.
+6. The boundary goes to the collars, and the outcome is recorded against the
+   decision so it becomes future context.
 
 ## Repository Map
 
@@ -92,7 +102,10 @@ Keep the repository split clear:
 - `LandUnit`: the shared geospatial primitive behind pastures, paddocks, sections, and related map features.
 - `Herd`: a livestock group under one management decision.
 - `Observation`: any time-bound signal about the farm.
-- `MovementDecision`: the recommendation for the current decision window.
+- `GrazingDecision`: the decision for one herd in one decision window, with inputs, farmer response, and outcome.
+- `LandReport`: what Alexandria returns about a geometry, stored as observations with provenance.
+- `BoundaryCommand`: a versioned boundary sent to a herd's collars.
+- `Autonomy`: the farmer's setting for how far the engine may act without approval.
 - `KnowledgeEntry`: a structured lesson extracted from a trusted source.
 - `ToolSpec`: a framework-neutral executable farm capability.
 - `OpenPastureContext`: the runtime-agnostic kernel for stores, knowledge, and config.

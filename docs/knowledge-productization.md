@@ -1,6 +1,13 @@
 # Knowledge Productization
 
-`openPasture` needs a clean way to curate, ship, and update ancestral knowledge without mixing it into farmer-specific farm data.
+`Openpasture` needs a clean way to curate, ship, and update ancestral knowledge without mixing it into farmer-specific farm data.
+
+Alexandria is the primary knowledge source and is queried live. This document
+is about the curated layer that sits beside it: the lessons Openpasture ships
+in `knowledge.db` so decisions can cite stable, attributed entries, and so the
+engine still has grounded knowledge when Alexandria is unreachable. The
+curated release should not try to mirror Alexandria. It should hold the
+distilled lessons decisions actually lean on.
 
 ## What Exists Now
 
@@ -85,8 +92,9 @@ Those manifests can become the raw material for:
 
 For a hosted offering, keep the same logical split:
 
-- a maintained shared ancestral knowledge layer
-- a farmer-specific operational data layer
+- Alexandria as the live knowledge source
+- a maintained shared ancestral knowledge layer for cited lessons
+- a farmer-specific operational data layer, including the decision record
 
 The hosted product can distribute the curated knowledge corpus centrally while still letting the same plugin run locally for self-hosted farmers.
 
@@ -109,3 +117,5 @@ The agent should always be able to:
 - update the shared knowledge layer
 - preserve the farmer's local farm context
 - preserve farmer-added observations and custom knowledge
+- keep every `knowledge_entry_id` cited by a past decision resolvable after an
+  update

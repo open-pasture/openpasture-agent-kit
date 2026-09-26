@@ -1,6 +1,6 @@
 ---
 title: "Troubleshooting"
-description: "Common OpenPasture setup and runtime issues."
+description: "Common Openpasture setup and runtime issues."
 icon: "circle-help"
 ---
 
@@ -17,7 +17,37 @@ openpasture skills list
 ## Knowledge Ingestion Says Firecrawl Is Missing
 
 Set `FIRECRAWL_API_KEY` before running external source ingestion. Onboarding,
-farm state, and morning briefs can still work without it.
+farm state, decisions, and morning briefs still work without it.
+
+## Land Reports Look Wrong For My Farm
+
+You are probably on fixture reports. Fixtures return canned data that describes
+no real place. Set `FIRECRAWL_API_KEY` and the land provider, then check the
+report's `sources`. Also check that the paddock geometry is in
+`[longitude, latitude]` order; swapped coordinates land you on the other side
+of the world.
+
+A section with `status: "unavailable"` is not an error. Alexandria had no
+coverage for it, and the reason says why.
+
+## Decision Says MOVE But The Herd Did Not Move
+
+Check in order:
+
+1. `get_decision`: is the status still `proposed`? Under `propose` autonomy
+   nothing is sent until you approve.
+2. Was it `rejected`, or stopped before the send time under
+   `apply_unless_stopped`?
+3. `get_boundary_status`: was it sent, and how many collars applied it?
+4. Is `OPENPASTURE_COLLAR_GATEWAY` still `simulated`? Simulated confirmations
+   never reach real collars.
+
+## Some Collars Never Confirm
+
+`get_boundary_status` names the collars that did not confirm. Common causes are
+low battery, no signal, or an animal out of range. A `rejected` status carries
+a reason. The boundary is not active for the herd until enough collars
+confirm.
 
 ## MCP Dependency Is Missing
 
@@ -45,7 +75,7 @@ export OPENPASTURE_CONVEX_KEY="..."
 Use `OPENPASTURE_STORE=sqlite` for local self-hosted work unless you are
 specifically validating hosted storage.
 
-## Briefs Use The Wrong Local State
+## Briefs Or Decisions Use The Wrong Local State
 
 Check `OPENPASTURE_DATA_DIR`. Local SQLite state lives under that directory. If
 you are testing multiple farms or profiles on one machine, use separate absolute

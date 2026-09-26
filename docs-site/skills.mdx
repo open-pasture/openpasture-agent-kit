@@ -1,6 +1,6 @@
 ---
 title: "Skills"
-description: "Portable operational runbooks for OpenPasture agents."
+description: "Portable operational runbooks for Openpasture agents."
 icon: "graduation-cap"
 ---
 
@@ -14,26 +14,40 @@ those files so an agent can load the runbook it needs.
 
 ## Current Skills
 
-- `farm-onboarding`: create the first farm, paddocks, and herd.
-- `morning-brief`: assemble a daily field-ready recommendation.
-- `rotation-planning`: reason through `MOVE`, `STAY`, and `NEEDS_INFO`.
-- `pasture-assessment`: read forage, residual, animal behavior, and field notes.
-- `knowledge-ingestion`: turn trusted sources into structured lessons.
-- `data-pipeline-setup`: configure reusable signal ingestion.
-- `pipeline-spypoint`: example vendor-oriented pipeline skill.
+- `daily-grazing-decision`: run one decision for one herd. Assemble context,
+  read signals, consult knowledge, decide, write reasoning a farmer trusts,
+  submit, handle the farmer's response, confirm the boundary, and evaluate the
+  outcome.
+- `morning-brief`: turn the latest decisions into a plain-language daily
+  summary.
+- `rotation-planning`: sequence paddocks over the coming weeks against rest,
+  recovery, and the forecast.
+- `pasture-assessment`: read forage, residual, and recovery from field notes,
+  imagery, and collar pressure.
+- `farm-onboarding`: create the first farm, paddocks, and herd, link collars,
+  and set autonomy.
+- `geo-onboarding`: turn map screenshots and sketches into draft farm and
+  paddock geometry.
+- `knowledge-ingestion`: add trusted sources Alexandria does not carry as
+  cited lessons.
+- `data-pipeline-setup`: connect another vendor's web app as a recurring
+  observation source.
+- `pipeline-spypoint`: example vendor pipeline skill.
 
 ## Use Skills From The CLI
 
 ```bash
 openpasture skills list
-openpasture skills show morning-brief
+openpasture skills show daily-grazing-decision
 ```
 
 ## Writing A Skill
 
-A good OpenPasture skill should:
+A good Openpasture skill should:
 
 - keep the farmer's decision authority visible,
+- act only within the herd's autonomy setting, and say what was sent and
+  whether it was confirmed,
 - ask for the most useful missing observation instead of guessing,
 - name the tool calls it expects the agent to use,
 - explain how to check the result,

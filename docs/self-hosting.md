@@ -1,9 +1,10 @@
 # Self-Hosting
 
-`openPasture` is designed to be usable without the hosted platform.
+`Openpasture` is designed to be usable without the hosted platform.
 
-This repository is the Hermes-specific implementation of the OSS agent core.
-The hosted OpenPasture product should wrap this logic from a separate cloud
+This repository is the open-source engine. Hermes is the most validated
+self-hosted runtime today, but the CLI and MCP connectors run the same tools.
+The hosted Openpasture product wraps this logic from a separate cloud
 repository instead of moving hosted concerns into this repo. See
 [`cloud-boundary.md`](cloud-boundary.md) for the architectural split.
 
@@ -30,13 +31,34 @@ export OPENPASTURE_DEFAULT_TIMEZONE="America/Chicago"
 export OPENPASTURE_BRIEF_TIME="06:00"
 export OPENPASTURE_LLM_PROVIDER="anthropic"
 export FIRECRAWL_API_KEY="fc-..."
+export OPENPASTURE_COLLAR_GATEWAY=simulated
 ```
 
 Additional provider-specific variables depend on your chosen LLM and telemetry stack.
 
 `OPENPASTURE_BRIEF_TIME` controls the local scheduled morning brief time in `HH:MM` 24-hour format. The runtime schedules one recurring brief job per farm using the farm's timezone.
 
-`FIRECRAWL_API_KEY` is required for the knowledge-ingestion workflow because the agent uses Firecrawl search, scrape, and interact to discover and read external sources. If it is missing, onboarding and morning briefs still work, but external ingestion tools will return a clear error.
+`FIRECRAWL_API_KEY` is used for two things: Alexandria land reports and knowledge, and the knowledge-ingestion workflow, which uses Firecrawl search, scrape, and interact to read external sources. If it is missing, onboarding, decisions, and morning briefs still work. Land reports fall back to offline fixtures, and external ingestion tools return a clear error.
+
+## Land And Collars
+
+The decision cycle needs two outside connectors. Both ship with stand-ins so a
+self-hosted install runs end to end without hardware or accounts.
+
+- **Land reports.** The Alexandria adapter fetches real reports for your
+  paddock geometry. Without a key, an open-data fallback
+  fills weather and marks imagery unavailable. The fixture source returns canned
+  reports for offline work and tests. Pick with `OPENPASTURE_LAND_SOURCE`.
+- **Collars.** `OPENPASTURE_COLLAR_GATEWAY=simulated` (the default) simulates
+  positions and boundary confirmations. Nothing reaches a real collar.
+  `OPENPASTURE_COLLAR_GATEWAY=http` with `OPENPASTURE_COLLAR_GATEWAY_URL`
+  sends boundary commands to a collar gateway and reads acknowledgements
+  back.
+
+Keep the herd's autonomy at `propose` while you test. Switch the gateway to
+`http` only when you mean for boundaries to reach real animals.
+
+See `docs-site/environment-variables.mdx` for the full variable table.
 
 ## Messaging Setup
 
@@ -62,7 +84,7 @@ Suggested first prompt:
 I am setting up a new pasture-based livestock farm. Help me create the farm, paddocks, and first herd.
 ```
 
-During this first-run flow, `openPasture` treats setup as a constrained onboarding workflow.
+During this first-run flow, `Openpasture` treats setup as a constrained onboarding workflow.
 
 - The preferred setup primitive is `setup_initial_farm`.
 - One farm per instance is the default alpha behavior.
@@ -72,12 +94,12 @@ During this first-run flow, `openPasture` treats setup as a constrained onboardi
 After onboarding, a good second prompt is:
 
 ```text
-Record this observation for the current paddock: forage is getting short and muddy near the water point. Then give me today's morning brief.
+Record this observation for the current paddock: forage is getting short and muddy near the water point. Then run today's grazing decision for the herd.
 ```
 
 ## First-Run Behavior
 
-- `openPasture` creates local `farm.db` and `knowledge.db` files under `OPENPASTURE_DATA_DIR`.
+- `Openpasture` creates local `farm.db` and `knowledge.db` files under `OPENPASTURE_DATA_DIR`.
 - If `knowledge.db` is empty on first run, the agent auto-loads the seed knowledge in `seed/principles/`.
 - Set `OPENPASTURE_LOAD_SEED=0` to force-skip that bootstrap.
 - Set `OPENPASTURE_LOAD_SEED=1` to force a seed reload.
@@ -101,7 +123,7 @@ npx convex dev
 npx convex env set OPENPASTURE_CONVEX_STORE_KEY "replace-with-a-long-random-secret"
 ```
 
-Then run the OpenPasture agent against that deployment:
+Then run the Openpasture agent against that deployment:
 
 ```bash
 export OPENPASTURE_STORE=convex
@@ -110,14 +132,18 @@ export OPENPASTURE_CONVEX_KEY="replace-with-a-long-random-secret"
 ```
 
 The Convex backend files live in `convex/`. They store portable farm state only:
-farms, land units, paddocks, herds, observations, plans, actions, pipelines, and
-daily briefs. Hosted account systems such as Clerk, invites, billing,
+farm structure, observations, grazing decisions, pipelines, and daily briefs. Hosted account systems such as Clerk, invites, billing,
 provisioning, and support remain outside the OSS backend.
 
 ## Current Alpha Boundaries
 
 - The self-hosted alpha defaults to SQLite, local scheduling, and Hermes messaging.
-- Satellite ingestion and photo ingestion are not implemented yet.
+- Land reports fall back to open data (weather only) until Alexandria is configured.
+- Collars default to the simulated gateway. The HTTP gateway adapter is new and
+  has not been validated against a fleet of real collars.
+- Photo ingestion is not implemented yet.
+- The farm view (map and decision timeline) is part of the hosted product.
+  Self-hosted farmers read and answer decisions through conversation or the CLI.
 - `convex` is available as an optional backend, but SQLite remains the simplest
   path for local single-farm installs.
 - Scheduled brief delivery remains local to this runtime. Hosted transport and delivery orchestration belong in the separate cloud wrapper.
@@ -128,4 +154,4 @@ If you are validating two operator-managed pilot instances on one machine, use H
 
 ## Hardware Notes
 
-The initial personal testing target is a laptop or small VPS. The first milestone is a useful messaging-first workflow, not high-throughput infrastructure.
+The initial personal testing target is a laptop or small VPS. Collar fixes are the highest-volume data; raw fixes are kept for a retention window and rolled into summaries, so a small machine is enough for one farm.

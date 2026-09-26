@@ -23,6 +23,18 @@ Run one tool:
 openpasture tool run generate_morning_brief --json '{}'
 ```
 
+Run and answer a decision:
+
+```bash
+openpasture tool run run_decision_cycle --json '{"herd_id":"herd_1"}'
+openpasture tool run list_decisions --json '{"herd_id":"herd_1"}'
+openpasture tool run respond_to_decision --json '{"decision_id":"gd_...","response":"approve"}'
+openpasture tool run get_boundary_status --json '{"decision_id":"gd_..."}'
+```
+
+`openpasture tools list` prints each tool's exact schema. The CLI suits cron:
+a scheduled `run_decision_cycle` per herd is the whole daily loop.
+
 List skills:
 
 ```bash
@@ -32,7 +44,7 @@ openpasture skills list
 Show one skill:
 
 ```bash
-openpasture skills show morning-brief
+openpasture skills show daily-grazing-decision
 ```
 
 Search stored knowledge:

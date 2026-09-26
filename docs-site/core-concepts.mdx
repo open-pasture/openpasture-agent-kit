@@ -1,57 +1,99 @@
 ---
 title: "Core Concepts"
-description: "The basic language OpenPasture uses for farms, observations, decisions, and knowledge."
+description: "The language Openpasture uses for farms, herds, decisions, autonomy, and the decision record."
 icon: "book-open"
 ---
 
 # Core Concepts
 
-OpenPasture is built around a simple daily loop:
+Openpasture asks one question every decision window, for every herd: should
+the herd move today, and if so, where? Everything below exists to answer that
+well and to remember what happened.
 
-1. What is true about the farm right now?
-2. Should the herd `MOVE`, `STAY`, or does the agent `NEEDS_INFO`?
-3. Why does that recommendation make sense?
-4. What single observation would reduce uncertainty most?
-
-The farmer remains the operator. The agent extends attention, memory, and
-execution.
+The farmer remains the operator. The engine carries the daily attention and
+the long memory.
 
 ## Farm
 
-The top-level management unit. A farm contains paddocks, herds, infrastructure,
-observations, timezone, and location context.
+The top-level management unit. A farm has a timezone, a location, and the land
+units, herds, animals, and infrastructure on it.
 
-## Paddock
+## Land Unit
 
-A bounded grazing unit. A paddock can store geometry, area, management status,
-and notes that affect movement planning.
+The shared map shape behind pastures, paddocks, and sections. A **pasture** is
+a durable field. A **paddock** is a grazing subdivision inside it. A
+**section** is an optional temporary strip inside a paddock. Paddock geometry
+is what the engine uses to request land reports and to build boundaries.
 
 ## Herd
 
-A livestock group managed together. A herd tracks species, count, optional
-animal-unit assumptions, and current paddock assignment.
+A group of animals managed under one decision. A herd tracks species, count,
+current paddock, the collars it wears, and its autonomy setting.
 
 ## Observation
 
-A time-bound signal about the farm. A farmer note, weather report, photo
-analysis, and satellite-derived signal should all be expressible as
-observations.
+A time-bound signal about the farm. A farmer note, a photo, a weather reading,
+and one section of a land report are all observations, each with its source.
 
-## Movement Decision
+## Land Report
 
-The recommendation for a decision window. A decision records the recommended
-action, reasoning, confidence, timing, source paddock, destination paddock when
-applicable, and farmer response status.
+What Alexandria returns about a point or polygon: weather, imagery, climate,
+hazards, soil, vegetation, species, water, and terrain. Each section carries
+its sources or says plainly that it is unavailable. See
+[Land Reports](/land-reports).
 
-## Daily Brief
+## Collar Report And Boundary Command
 
-The farmer-facing summary. A good brief names the practical recommendation,
-explains why, and asks for the most useful missing observation when uncertainty
-matters.
+Collars send position fixes, cue events, and battery. The engine sends a
+**boundary command**: a versioned polygon, optional exclusions, and an optional
+transition corridor. A boundary is active only once the collars confirm it.
+See [Collars](/collars).
+
+## Grazing Signals
+
+Calculations over stored data: grazing pressure, rest days, forage, recovery,
+feed budget, weather risk, and herd behavior. Signals are evidence for the
+decision, not the decision itself.
+
+## Grazing Decision
+
+The decision for one herd in one window.
+
+- `STAY`: stay inside the current boundary.
+- `MOVE`: move to a specific land unit and boundary.
+- `NEEDS_INFO`: the call depends on one observation the data cannot give.
+
+A decision carries its reasons, a confidence, the inputs it used, the autonomy
+in force, the farmer's response, the boundary sent, and the outcome evaluated
+on later cycles. See [Decision Engine](/decision-engine).
+
+## Autonomy
+
+The farmer's setting for how far the engine may act on its own.
+
+- `propose`: every move waits for approval. The default.
+- `apply_unless_stopped`: a move is sent at a set time unless the farmer stops
+  it.
+- `apply`: moves are sent when decided. The farmer reviews after.
+
+## The Decision Record
+
+Every decision, the inputs behind it, the farmer's response, the boundary
+sent, and the outcome that followed. This is the core asset. Over time it
+shows how this farm's land responds to how it is grazed. When the farmer
+overrides a decision, the override is kept with the original. It is signal,
+not error.
+
+## Morning Brief
+
+The farmer-readable wrapper of the latest decision for each herd. It says what
+the herd should do, why, what was sent to the collars, and what would help
+next.
 
 ## Knowledge Entry
 
-A structured lesson from a trusted source. The first entry types are
-`principle`, `technique`, `signal`, and `mistake`.
+A structured lesson from a trusted source, with attribution. Types are
+`principle`, `technique`, `signal`, and `mistake`. Decisions cite the entries
+that shaped them. See [Knowledge](/knowledge).
 
-Source docs: `docs/vision.md` and `docs/domain.md`.
+Source docs: `docs/vision.md`, `docs/domain.md`, and `docs/contracts.md`.

@@ -3,61 +3,106 @@
 ## Founding Principle
 
 Every human deserves to eat animals raised on pasture. Every animal deserves to
-live on grass. OpenPasture exists to scale humanity's access to pasture-based
+live on grass. Openpasture exists to scale humanity's access to pasture-based
 livestock by building tools that help farmers grow their operations.
-
-OpenPasture is a tools company. Today the primary product is a connective
-operating layer delivered through AI agents — portable packages of tools,
-knowledge, skills, data integrations, and operating opinions that equip an agent
-to do useful work on a pasture-based farm. Tomorrow the product may extend to
-collars, communications infrastructure, and other hardware and software that
-automates and augments the farmer's decision-making and labor.
-
-This repository is the agent kit — the first product in that suite.
 
 ## Product Thesis
 
-A farmer should be able to use the agent interface they prefer: ChatGPT, Claude, Cursor, Hermes, an open-source local agent, or a hosted openPasture companion. Once connected, the agent should gain the farm-specific state, practitioner knowledge, operational runbooks, and executable tools needed to help manage the farm alongside the farmer.
+Openpasture is the data and decision layer between two things that already
+exist:
 
-The product is not the UI alone. The product is the farm operating capability that can travel between agent surfaces. This repo packages the agent kit that makes that portability real.
+- **What the world knows about the land.** Alexandria takes a location and
+  returns what is known about it: current, historical, and forecast weather;
+  the latest satellite imagery; drought, flood, and disaster history; soils;
+  native and invasive species; and any other environmental signal worth
+  tracking. Alexandria also carries the grazing knowledge: research papers,
+  practitioner videos, and the hands-on wisdom of graziers like Greg Judy.
+- **Where the animals are, and where they are allowed to be.** OpenCollar
+  collars report each animal's position and accept boundary updates that move
+  the herd.
 
-## The Farmer Loop
+Openpasture brings the two together. It holds the farm's own record, runs
+calculations over land and collar data, and runs an agent whose job is one
+question, asked every day for every herd:
 
-Every day, the system should help answer:
+> Should the herd move today, and if so, where?
 
-- what is true about the farm right now,
-- whether animals should `MOVE`, `STAY`, or whether the agent `NEEDS_INFO`,
-- why that recommendation makes sense,
-- what single observation would reduce uncertainty most.
+The agent answers by reasoning over the data through tools and skills. When the
+answer is to move, Openpasture writes the new boundary and sends it to the
+collars.
 
-The farmer remains the operator. The agent extends attention, memory, and execution.
+## The Daily Loop
 
-## What openPasture Provides
+1. **Assemble.** Collar positions and tracks for the herd. An Alexandria land
+   report for the current paddock and the candidates. The farm's own history of
+   grazes, rest, and recovery. Relevant grazing knowledge.
+2. **Derive.** Grazing pressure from collar data, days of rest per paddock,
+   forage estimates from imagery, recovery trends, a feed budget against the
+   forecast, weather and drought risk.
+3. **Decide.** `STAY`, `MOVE` to a specific boundary, or `NEEDS_INFO`, with the
+   reasoning, a confidence, and the single observation that would help most.
+4. **Review.** The farmer sees the decision and can approve, change, or
+   override it. How much review is required is the farmer's setting.
+5. **Act.** The boundary goes to the collars. Openpasture confirms each collar
+   received it.
+6. **Learn.** Openpasture watches what happens next: whether the herd held the
+   line, how the animals grazed, how the paddock recovered in later imagery.
+   That outcome becomes context for tomorrow.
 
-- portable skills for farm operations,
-- curated grazing and livestock knowledge,
-- executable tools for farm state and decisions,
-- storage protocols and local-first backends,
-- ingestion pipelines for weather, satellite, photos, and vendor telemetry,
-- automation patterns for briefs, alerts, and approval flows,
-- a plain-language operating philosophy.
+## The Farmer Stays The Operator
 
-## What We Are Not Building First
+The engine is always working out where the herd should be. The farmer decides
+how much of that to hand over:
 
-- autonomous collar control,
-- hardware firmware,
-- dense soil instrumentation,
-- dashboard-first SaaS workflows,
-- a proprietary-only cloud core.
+- `propose`: every move waits for the farmer's approval. This is the default.
+- `apply_unless_stopped`: a move is sent at a set time unless the farmer stops
+  it first.
+- `apply`: moves are sent when decided. The farmer reviews after the fact.
 
-These are future ambitions, not dismissed categories. Collars, communications
-infrastructure, and field hardware are part of the long-term vision — but the
-durable foundation comes first: a toolkit that any qualified agent can use to
-help a farmer manage livestock on pasture.
+A farmer's override is never an error. It is the most valuable signal the
+system gets, and it is recorded with the decision it replaced.
+
+## What Openpasture Owns
+
+Land data and grazing knowledge come from Alexandria. Position and boundary
+control come from the collars. Openpasture owns what neither has:
+
+- the farm's structure: pastures, paddocks, herds, animals, and infrastructure,
+- the decision record: every decision, the inputs behind it, the farmer's
+  response, the boundary sent, and the outcome that followed,
+- the calculations that turn raw land and collar data into grazing signals,
+- the agent's tools, skills, and operating stance.
+
+The decision record is the heart of it. Over time it shows how this farm's land
+responds to how it is grazed, and that makes each decision better than the
+last.
+
+## Where You See It
+
+The engine runs whether anyone is watching or not. The farmer reaches it two
+ways:
+
+- **Conversation.** Any capable agent surface, including ChatGPT, Claude,
+  Cursor, Hermes, a local agent, or the hosted Openpasture companion, connects
+  to the same tools and state.
+- **The farm view.** A map of the herd, today's boundary, and the proposed next
+  one; a timeline of decisions with their reasoning; history and recovery for
+  each paddock; and analytics built on the decision record. Overriding a
+  decision happens right on the map.
+
+## Repository Split
+
+- `openpasture-agent-kit` (this repo): the engine. Domain model, decision
+  record, calculations, the land and collar connectors, tools, skills, and
+  knowledge access. It runs self-hosted without the cloud product.
+- `openpasture-cloud`: hosted accounts, the farm view, notifications, billing,
+  and support. It reads and writes through the kit.
+- `opencollar`: collar hardware, firmware, and the collar protocol.
+- `openpasture-web`: public site and positioning.
 
 ## Success
 
 The product succeeds when more animals live on grass and more people can afford
-to eat them. At the farm level, that means a farmer can connect an agent and
-say: "This understands my land, remembers my operation, and helps me make better
-calls without taking judgment away from me."
+to eat them. At the farm level, that means a farmer can say: "This knows my
+land, watches my herd, and moves them where I would have, and when it doesn't,
+it learns why."

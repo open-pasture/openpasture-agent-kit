@@ -1,40 +1,48 @@
-# openPasture Agent Kit
+# Openpasture Agent Kit
 
-This repository contains the agent kit for `openPasture`, the agent-native farm operating toolkit for pasture-based livestock management.
+This repository is the `Openpasture` engine: the data and decision layer between what the world knows about the land and the collars that move the herd.
 
-`openPasture` is the product suite. This repo packages the portable agent-facing kit: tools, skills, farm state, knowledge, connector adapters, and operating opinions that can bolt onto an agent brain. The richest runtime is a coding agent with CLI access, skills, files, and code execution. MCP is a supported integration method for chat assistants and other MCP-capable clients. Hermes remains one supported adapter.
+- **Alexandria** takes a point or polygon and returns what is known about it: current, historical, and forecast weather, satellite imagery, drought and climate history, hazards, soil, vegetation, species, water, and terrain, each with sources. It also carries the grazing knowledge: research papers, practitioner videos, and hands-on wisdom from graziers like Greg Judy.
+- **OpenCollar** collars report each animal's position and accept versioned boundary commands.
 
-## Product Thesis
+Every decision window, daily by default, for every herd, the engine answers one question: should the herd move today, and if so, where?
 
-The farmer brings a conversation surface. The agent brings reasoning. `openPasture` brings the farming domain:
+1. It assembles collar positions, a land report for the current paddock and the candidates, the farm's grazing history, and relevant knowledge.
+2. It derives grazing signals: pressure, rest, forage, recovery, feed budget, and weather risk.
+3. An agent reasons over that context through tools and skills and decides `STAY`, `MOVE` to a specific boundary, or `NEEDS_INFO`, with reasoning, a confidence, and the one observation that would help most.
+4. The farmer's autonomy setting decides what happens next: `propose` (the default, waits for approval), `apply_unless_stopped`, or `apply`.
+5. The boundary goes to the collars, and the engine records which collars confirmed it.
+6. On later cycles, the engine evaluates what happened and writes the outcome back to the decision.
 
-- executable tools for farm setup, observations, plans, knowledge, and data pipelines,
-- portable markdown skills that teach an agent how to work through farm operations,
-- curated practitioner knowledge from trusted regenerative agriculture sources,
-- local-first farm state backed by SQLite by default,
-- optional first-party Convex storage for hosted or self-hosted sync,
-- ingestion paths for weather, satellite, photos, and vendor telemetry,
-- a plain-language operating stance encoded in `SOUL.md`.
+The decision record is the core asset: every decision, the inputs behind it, the farmer's response, the boundary sent, and the outcome. The farmer stays the operator. An override is recorded as signal, never treated as an error.
 
-The goal is to turn any capable general agent into a useful companion for managing a pasture-based livestock farm alongside the farmer.
+The farm view (map, decision timeline, paddock history, analytics) lives in `openpasture-cloud` and reads the decision record through this kit. This repo runs on its own, self-hosted, without the cloud product.
 
 ## Runtime Modes
 
-- **Coding-agent mode:** a coding agent reads skills, runs the `openpasture` CLI, inspects files/state, and composes farm workflows directly in a workspace.
-- **MCP client mode:** ChatGPT, Claude, Cursor, and other MCP-capable clients access the same tools and skills through the MCP connector.
+The engine is packaged as an agent kit. The richest runtime is a coding agent with CLI access, skills, files, and code execution.
+
+- **Coding-agent mode:** a coding agent reads skills, runs the `openpasture` CLI, inspects files and state, and runs decisions directly in a workspace.
+- **MCP client mode:** ChatGPT, Claude, Cursor, and other MCP-capable clients reach the same tools and skills through the MCP connector.
 - **Hermes adapter:** preserves the existing Hermes plugin entry point.
 
 ## What Works Now
 
-- SQLite-backed farm, paddock, herd, observation, plan, and knowledge storage
-- First-run farm onboarding
-- Seed knowledge bootstrap
-- Knowledge search and lesson storage
-- Morning brief generation with `MOVE`, `STAY`, or `NEEDS_INFO`
-- Recurring local morning-brief scheduling
-- Data pipeline setup, persistence, and execution
-- Portable skill discovery
+- SQLite-backed farm, land unit, herd, observation, decision, and knowledge storage
 - Optional Convex-backed farm state through `OPENPASTURE_STORE=convex`
+- First-run farm onboarding, map-based geo onboarding, collar linking, and autonomy setup
+- The decision cycle: `run_decision_cycle` assembles context, gets a decision, applies autonomy, sends the boundary, and records it
+- Grazing decisions (`STAY`, `MOVE`, `NEEDS_INFO`) with inputs, farmer response, boundary command, and outcome on the record
+- A heuristic fallback that decides when no agent brain is available
+- `generate_morning_brief`, the farmer-readable wrapper of the latest decision, with recurring local scheduling
+- Knowledge search over the curated `seed/` corpus and stored lessons, with Alexandria as the primary source when configured, plus lesson storage and batch ingestion
+- Data pipelines for other vendor systems
+- Portable skill discovery
+
+Both outside connectors ship with stand-ins, so the whole loop runs offline:
+
+- **Land reports** come from Alexandria when `FIRECRAWL_API_KEY` is set. Without it, an open-data fallback fills weather and marks imagery unavailable. An offline fixture source exists for tests and demos.
+- **Collars** ship with a simulated gateway and an HTTP gateway adapter. The default is `simulated`: positions and confirmations are made up and nothing reaches a real collar.
 
 ## Quickstart
 
@@ -45,8 +53,10 @@ pip install -e .
 export OPENPASTURE_STORE=sqlite
 export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
 export OPENPASTURE_BRIEF_TIME="06:00"
-# Optional, required for external web knowledge ingestion:
+# Optional: real Alexandria land reports and knowledge, and web ingestion.
 export FIRECRAWL_API_KEY="fc-..."
+# Collars: simulated by default. Use http with a gateway URL for real collars.
+export OPENPASTURE_COLLAR_GATEWAY=simulated
 ```
 
 Optional Convex backend:
@@ -67,8 +77,13 @@ Use the CLI:
 openpasture tools list
 openpasture skills list
 openpasture tool run setup_initial_farm --json '{"name":"Willow Creek","timezone":"America/Chicago","herd":{"id":"herd_1","species":"cattle","count":28},"paddocks":[{"id":"paddock_home","name":"Home","status":"grazing"}]}'
+openpasture tool run set_autonomy --json '{"herd_id":"herd_1","autonomy":"propose"}'
+openpasture tool run run_decision_cycle --json '{"herd_id":"herd_1"}'
+openpasture tool run list_decisions --json '{"herd_id":"herd_1"}'
 openpasture tool run generate_morning_brief --json '{}'
 ```
+
+Arguments shown are the common case. Run `openpasture tools list` for each tool's exact schema.
 
 Use Hermes:
 
@@ -97,7 +112,7 @@ src/openpasture/
   store/               Storage protocols and backends
   knowledge/           Seed loading, embeddings, retrieval, ingestion batches
   ingestion/           External farm signal pipelines
-  briefing/            Farm context assembly, default advisor, scheduling
+  briefing/            Decision context assembly, heuristic fallback, scheduling
 skills/                Portable operational runbooks
 seed/                  Foundational grazing knowledge
 SOUL.md                Agent voice and operating philosophy
@@ -138,4 +153,4 @@ uv run --python 3.11 openpasture validate alpha automated
 
 ## Boundary
 
-This repository owns the portable agent kit for the openPasture farm operating toolkit. Hosted infrastructure, billing, account management, proprietary UI, and support workflows should wrap this kit instead of replacing it.
+This repository owns the engine: domain model, decision record, calculations, land and collar connectors, tools, skills, and knowledge access. Hosted accounts, the farm view, notifications, billing, and support live in `openpasture-cloud` and wrap this kit instead of replacing it. Collar hardware, firmware, and the collar protocol live in `opencollar`.

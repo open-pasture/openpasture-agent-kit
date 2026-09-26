@@ -2,7 +2,7 @@
   "name": "@openpasture/chatgpt-onboarding-widget",
   "private": true,
   "version": "0.1.0",
-  "description": "Plain MCP Apps iframe component for OpenPasture ChatGPT farm onboarding.",
+  "description": "Plain MCP Apps iframe component for Openpasture ChatGPT farm onboarding.",
   "scripts": {
     "build": "cp onboarding-summary.html ../../../src/openpasture/connectors/assets/onboarding-summary.html"
   }

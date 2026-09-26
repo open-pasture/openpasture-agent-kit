@@ -1,22 +1,23 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "maple",
-  "name": "OpenPasture",
-  "description": "The open-source agent kit for pasture-based livestock management.",
+  "name": "Openpasture",
+  "description": "The open-source grazing decision engine between land data and virtual-fence collars.",
   "colors": {
-    "primary": "#4a6a2e",
-    "light": "#5a7a38",
-    "dark": "#1a1e18"
+    "primary": "#ff4f7b",
+    "light": "#ff8fa8",
+    "dark": "#06070a"
   },
   "appearance": {
-    "default": "system"
+    "default": "dark"
   },
   "fonts": {
     "heading": {
-      "family": "Libre Baskerville"
+      "family": "IBM Plex Mono",
+      "weight": 600
     },
     "body": {
-      "family": "JetBrains Mono",
+      "family": "IBM Plex Mono",
       "weight": 400
     }
   },
@@ -36,7 +37,7 @@
     }
   },
   "banner": {
-    "content": "OpenPasture is in public beta. [Join the waitlist](https://openpasture.com) or [view source on GitHub](https://github.com/open-pasture/openpasture-agent-kit).",
+    "content": "Openpasture Cloud is in public beta. [Get started](https://app.openpasture.dev/sign-up) or [view source on GitHub](https://github.com/open-pasture/openpasture-agent-kit).",
     "dismissible": true
   },
   "navbar": {
@@ -47,13 +48,13 @@
       },
       {
         "label": "Website",
-        "href": "https://openpasture.com"
+        "href": "https://openpasture.dev"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Get Started",
-      "href": "/quickstart"
+      "href": "https://app.openpasture.dev/sign-up"
     }
   },
   "footer": {
@@ -63,18 +64,21 @@
     },
     "links": [
       {
-        "header": "Product",
+        "header": "Platform",
         "items": [
-          { "label": "Quickstart", "href": "/quickstart" },
-          { "label": "Hosted Cloud", "href": "https://openpasture.com" },
-          { "label": "Pricing", "href": "https://openpasture.com/pricing" }
+          { "label": "Agent Kit", "href": "https://openpasture.dev/agent-kit" },
+          { "label": "Cloud", "href": "https://openpasture.dev/cloud" },
+          { "label": "Integrations", "href": "https://openpasture.dev/integrations" },
+          { "label": "Pricing", "href": "https://openpasture.dev/pricing" }
         ]
       },
       {
         "header": "Community",
         "items": [
           { "label": "GitHub", "href": "https://github.com/open-pasture/openpasture-agent-kit" },
-          { "label": "Contributing", "href": "/contributing" }
+          { "label": "Contributing", "href": "/contributing" },
+          { "label": "Open Source", "href": "https://openpasture.dev/open-source" },
+          { "label": "Mission", "href": "https://openpasture.dev/mission" }
         ]
       }
     ]
@@ -84,7 +88,7 @@
     "display": "header"
   },
   "search": {
-    "prompt": "Search OpenPasture docs..."
+    "prompt": "Search Openpasture docs..."
   },
   "redirects": [
     { "source": "/introduction", "destination": "/" },
@@ -102,6 +106,10 @@
       {
         "group": "Get Started",
         "pages": ["index", "quickstart", "core-concepts"]
+      },
+      {
+        "group": "The Engine",
+        "pages": ["decision-engine", "land-reports", "collars"]
       },
       {
         "group": "Use The Kit",

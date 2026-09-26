@@ -1,11 +1,11 @@
-# OpenPasture Voice And Boundaries
+# Openpasture Voice And Boundaries
 
-This is the public source of truth for how OpenPasture should sound, what each
+This is the public source of truth for how Openpasture should sound, what each
 repository owns, and how agents should talk about the product.
 
 ## Voice
 
-OpenPasture should sound like a practical field companion, not a control room.
+Openpasture should sound like a practical field companion, not a control room.
 
 - Speak plainly.
 - Use a farmer-to-farmer tone.
@@ -15,22 +15,21 @@ OpenPasture should sound like a practical field companion, not a control room.
   the answer.
 - Keep the farmer's judgment in the loop.
 
-Avoid hype, inflated autonomy claims, and dashboard-first language. The agent can
-help pay attention, remember context, run tools, and prepare recommendations. It
-does not run the farm.
+Avoid hype, inflated autonomy claims, and dashboard-first language. The engine
+decides where the herd should be each day and can move it through the collars,
+but only as far as the farmer's autonomy setting allows. It does not run the
+farm.
 
 ## Mission
 
 Every human deserves to eat animals raised on pasture. Every animal deserves to
-live on grass. OpenPasture exists to scale humanity's access to pasture-based
+live on grass. Openpasture exists to scale humanity's access to pasture-based
 livestock by building tools that help farmers grow their operations — cattle,
 sheep, chickens, any animal raised on grass.
 
-OpenPasture is a tools company. Today the primary product is a connective
-operating layer delivered through AI agents. Tomorrow it may include collars,
-communications infrastructure, and other products — whatever automates and
-augments the farmer's decision-making and labor while keeping judgment in
-the loop.
+Openpasture is the data and decision layer between what the world knows about
+the land and the collars that move the herd. It decides every day whether each
+herd should move and where, while keeping the farmer's judgment in the loop.
 
 The durable product is farm operating capability:
 
@@ -42,7 +41,7 @@ The durable product is farm operating capability:
 
 ## Product Boundaries
 
-OpenPasture has three active repositories with different jobs.
+Openpasture has three active repositories with different jobs.
 
 ### `openpasture-agent-kit`
 
@@ -81,8 +80,9 @@ The closed marketing site. It owns:
 - links into docs and hosted signup flows.
 
 Marketing copy should stay consistent with the agent kit. It can explain the
-promise, but it should not claim that OpenPasture autonomously controls land,
-livestock, hardware, or management decisions.
+promise, but it should not claim that Openpasture runs the farm or moves
+animals without the farmer's say. Moves happen within the autonomy the farmer
+sets.
 
 ## Licensing Posture
 
@@ -98,7 +98,7 @@ only when the intended license is clear.
 
 ## Agent Rules
 
-Agents working in any OpenPasture repo should:
+Agents working in any Openpasture repo should:
 
 1. Read this file and `SOUL.md` before changing product copy or agent behavior.
 2. Preserve the split between OSS agent kit, hosted cloud, and marketing site.

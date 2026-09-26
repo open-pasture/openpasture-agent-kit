@@ -1,6 +1,6 @@
 # Domain Model
 
-The domain layer gives `openPasture` a stable internal language.
+The domain layer gives `Openpasture` a stable internal language.
 
 ## Core Entities
 
@@ -47,26 +47,42 @@ An activity event uses a stable envelope plus flexible typed payload:
 - targets: indexed links to every profile that should show the event: farm, pasture, paddock, herd, animal, or another land unit,
 - attachments: images, reports, files, and other media associated with the event. Image attachments may include a stable thumbnail URL for feed previews.
 
-This lets OpenPasture keep a fluid model that can grow with new data sources while preserving fast profile feeds.
+This lets Openpasture keep a fluid model that can grow with new data sources while preserving fast profile feeds.
 
-### MovementDecision
+### GrazingDecision
 
-The recommendation produced for a decision window.
+The decision for one herd in one decision window.
 
-A movement decision should record:
+A grazing decision records:
 
-- recommended action,
-- timing window,
-- source and destination paddocks when applicable,
-- reasoning,
-- confidence,
-- status after farmer response.
+- the action: `STAY`, `MOVE`, or `NEEDS_INFO`,
+- the decision window,
+- source and destination land units, and the target boundary for a move,
+- reasoning, confidence, and the uncertainty request when needed,
+- the inputs it drew on: land reports, collar summary, observations, knowledge,
+- the autonomy setting in force,
+- the farmer's response, including any modified boundary,
+- the boundary command sent,
+- the outcome, evaluated on later cycles.
+
+The full shape is in `docs/contracts.md`.
+
+### LandReport
+
+What Alexandria returns about a geometry: weather, imagery, climate, hazards,
+soil, vegetation, species, water, and terrain, each with sources. Stored as
+observations linked to the land units it covers.
+
+### BoundaryCommand
+
+A versioned boundary sent to a herd's collars, with exclusions and an optional
+transition corridor. Active only once collars acknowledge it.
 
 ### DailyBrief
 
 The human-readable artifact delivered to the farmer.
 
-A brief wraps a movement decision with context, key observations, and a targeted request for more information when useful.
+A brief wraps the latest grazing decision with context, key observations, and a targeted request for more information when useful.
 
 ### KnowledgeEntry
 
@@ -89,9 +105,11 @@ flowchart TD
     Farm --> Observation
     Farm --> FarmActivityEvent
     FarmActivityEvent --> FarmActivityTarget
-    Farm --> MovementDecision
-    MovementDecision --> KnowledgeEntry
-    DailyBrief --> MovementDecision
+    Farm --> GrazingDecision
+    GrazingDecision --> LandReport
+    GrazingDecision --> KnowledgeEntry
+    GrazingDecision --> BoundaryCommand
+    DailyBrief --> GrazingDecision
 ```
 
 ## Design Notes

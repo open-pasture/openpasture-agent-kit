@@ -1,16 +1,18 @@
 ---
 title: "Self-Hosting"
-description: "Run OpenPasture locally without the hosted cloud product."
+description: "Run the Openpasture engine yourself without the hosted cloud product."
 icon: "server"
 ---
 
 # Self-Hosting
 
-OpenPasture is designed to be usable without the hosted platform.
+Openpasture is designed to be usable without the hosted platform. The full
+decision cycle, the decision record, and autonomy settings all run in the
+public kit.
 
-The self-hosted path uses the public agent kit, local storage, and whichever
-agent surface you choose. The current alpha is strongest around SQLite, local
-scheduling, and the Hermes messaging path.
+The self-hosted path uses local storage and whichever agent surface you
+choose. The current alpha is strongest around SQLite, local scheduling, and the
+Hermes messaging path.
 
 ## What You Need
 
@@ -18,7 +20,8 @@ scheduling, and the Hermes messaging path.
 - An agent runtime or MCP-capable client
 - Optional Hermes setup for the current validated adapter
 - An LLM provider key
-- Optional `FIRECRAWL_API_KEY` for external knowledge ingestion
+- Optional `FIRECRAWL_API_KEY` for real Alexandria land reports and knowledge
+- Optional collar gateway URL if you run real collars
 
 ## Recommended Environment
 
@@ -27,7 +30,20 @@ export OPENPASTURE_STORE=sqlite
 export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
 export OPENPASTURE_DEFAULT_TIMEZONE="America/Chicago"
 export OPENPASTURE_BRIEF_TIME="06:00"
+export OPENPASTURE_COLLAR_GATEWAY=simulated
 ```
+
+## Land And Collars
+
+Both ship with stand-ins, so a self-hosted install runs end to end without
+hardware or accounts.
+
+- Land reports fall back to open data (weather only) until Alexandria is configured. See
+  [Land Reports](/land-reports).
+- Collars are simulated until you set `OPENPASTURE_COLLAR_GATEWAY=http` and a
+  gateway URL. See [Collars](/collars).
+
+Keep the herd on `propose` autonomy while you test.
 
 ## First Session Prompt
 
@@ -40,16 +56,21 @@ After onboarding:
 
 ```text
 Record this observation for the current paddock: forage is getting short and
-muddy near the water point. Then give me today's morning brief.
+muddy near the water point. Then run today's grazing decision for the herd.
 ```
 
 ## Current Alpha Boundaries
 
 - SQLite is the default self-hosted store.
-- Satellite ingestion and photo ingestion are not complete.
+- Land reports default to fixtures and collars to the simulated gateway.
+- The HTTP collar gateway adapter has not been validated against a fleet of
+  real collars yet.
+- Photo ingestion is not complete.
 - Convex is reserved for hosted work and is not the default local path.
-- Hosted transport, delivery orchestration, account management, and billing
-  belong in the cloud repo.
+- The farm view (map and decision timeline) is part of the hosted product.
+  Self-hosted farmers read and answer decisions in conversation or the CLI.
+- Hosted notifications, account management, and billing belong in the cloud
+  repo.
 
 Source docs: `docs/self-hosting.md`, `docs/cloud-boundary.md`, and
 `docs/alpha-validation.md`.

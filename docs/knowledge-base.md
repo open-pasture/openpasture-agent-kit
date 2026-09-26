@@ -4,11 +4,33 @@ The knowledge base is the agent's durable ancestral memory.
 
 ## Purpose
 
-`openPasture` should not rely only on generic model priors. It should reason with curated lessons from trusted practitioners and connect those lessons to the daily condition of a specific farm.
+`Openpasture` should not rely only on generic model priors. It should reason with curated lessons from trusted practitioners and connect those lessons to the daily condition of a specific farm.
+
+## Where Knowledge Comes From
+
+Two sources, used together:
+
+- **Alexandria** is the primary source. It carries research papers,
+  practitioner videos, and hands-on grazing wisdom from graziers like Greg
+  Judy, already indexed. Openpasture queries it for the situation at hand
+  instead of copying it wholesale.
+- **The curated local corpus** in `knowledge.db`, starting from `seed/`. It
+  holds lessons Openpasture has distilled into `KnowledgeEntry` records with
+  stable ids and attribution, plus sources the farmer adds.
+
+The curated corpus still matters. A decision cites the lessons that shaped it
+by `knowledge_entry_id`, and those ids need to stay stable and readable years
+later. The seed also keeps decisions grounded when Alexandria is unreachable
+or not configured.
+
+Local ingestion is for what Alexandria does not carry: the farmer's own notes,
+local extension material, and trusted sources not yet indexed. Search before
+ingesting so the local corpus does not duplicate Alexandria.
 
 ## Source Types
 
-The first ingestion focus is YouTube transcripts from trusted rotational and regenerative grazing practitioners.
+Local ingestion focuses on YouTube transcripts and written sources from trusted
+rotational and regenerative grazing practitioners.
 
 Examples of source categories:
 
@@ -38,14 +60,15 @@ flowchart LR
     Transcript --> Extraction[LessonExtraction]
     Extraction --> Embedding[EmbeddingGeneration]
     Embedding --> Storage[KnowledgeStorage]
-    Storage --> Retrieval[RetrievalAtPlanTime]
+    Alexandria[Alexandria] --> Retrieval
+    Storage --> Retrieval[RetrievalAtDecisionTime]
 ```
 
-## Retrieval During Planning
+## Retrieval During Decisions
 
-When the agent evaluates a movement decision, it should retrieve the most relevant knowledge entries for the current farm context rather than loading the entire corpus blindly.
+When the agent works through a grazing decision, it should retrieve the most relevant lessons for the current conditions, such as residual before heavy rain or rest in a summer slump, rather than loading the entire corpus blindly.
 
-The result should ground recommendations in explicit lessons and make the reasoning legible.
+Lessons that actually shaped the call are recorded in the decision's `inputs.knowledge_entry_ids`. The result should ground decisions in explicit lessons and make the reasoning legible.
 
 ## Seed Knowledge
 

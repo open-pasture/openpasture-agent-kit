@@ -1,6 +1,6 @@
 # ChatGPT Onboarding Web Component
 
-This is the source component for the OpenPasture ChatGPT farm onboarding app.
+This is the source component for the Openpasture ChatGPT farm onboarding app.
 It is plain HTML and JavaScript so the MCP server can inline a single iframe
 asset without adding a frontend build step.
 

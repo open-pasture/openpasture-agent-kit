@@ -1,6 +1,6 @@
 # Alpha Validation
 
-This runbook is for maintainers validating the `openPasture` agent kit after a Hermes connector update or compatibility change.
+This runbook is for maintainers validating the `Openpasture` agent kit after a Hermes connector update or compatibility change.
 
 For the broader architectural split and the current cloud handoff notes, also
 read [`cloud-boundary.md`](cloud-boundary.md) and
@@ -88,6 +88,7 @@ For `alpha`:
 OPENPASTURE_STORE=sqlite
 OPENPASTURE_DATA_DIR=/absolute/path/to/.openpasture-alpha
 OPENPASTURE_BRIEF_TIME=06:00
+OPENPASTURE_COLLAR_GATEWAY=simulated
 ```
 
 For `beta`:
@@ -96,12 +97,15 @@ For `beta`:
 OPENPASTURE_STORE=sqlite
 OPENPASTURE_DATA_DIR=/absolute/path/to/.openpasture-beta
 OPENPASTURE_BRIEF_TIME=06:00
+OPENPASTURE_COLLAR_GATEWAY=simulated
 ```
 
 Guidelines:
 
 - use absolute paths for `OPENPASTURE_DATA_DIR`
 - keep `OPENPASTURE_STORE=sqlite`
+- keep `OPENPASTURE_COLLAR_GATEWAY=simulated` unless the pilot is explicitly
+  testing real collars
 - use separate messaging credentials if both profiles will run gateways at the same time
 
 Check the profile state before testing:
@@ -141,7 +145,19 @@ I am setting up a new pasture-based livestock farm. Help me create the farm, pad
 Record this observation for the current paddock: forage is getting short and muddy near the water point.
 ```
 
-3. Ask for the brief:
+3. Run today's decision:
+
+```text
+Should the herd move today? Run today's grazing decision.
+```
+
+4. Answer it:
+
+```text
+Approve it, but pull the west line in 20 yards.
+```
+
+5. Ask for the brief:
 
 ```text
 Give me today's morning brief.
@@ -152,7 +168,12 @@ Confirm manually that each profile:
 - authenticates successfully through the configured messaging surface
 - creates an isolated farm without leaking data across profiles
 - accepts the field note as a usable observation
-- returns a sensible `MOVE`, `STAY`, or `NEEDS_INFO` brief with reasoning
+- records a `GrazingDecision` of `MOVE`, `STAY`, or `NEEDS_INFO` with reasoning
+  and confidence
+- leaves the decision waiting under the default `propose` autonomy and says so
+- records the farmer's modification with the original kept on the record
+- reports what was sent to the simulated collars and how many confirmed
+- returns a brief that matches the stored decision
 
 ## Scheduled Brief Delivery Check
 

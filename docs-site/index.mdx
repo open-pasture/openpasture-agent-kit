@@ -1,89 +1,90 @@
 ---
-title: "OpenPasture"
-description: "The open-source agent kit for pasture-based livestock management. Give any AI agent the tools, knowledge, and skills to help manage a farm."
+title: "Openpasture"
+description: "The open-source grazing decision engine. Every day, for every herd: should they move, and where?"
 mode: "wide"
 ---
 
-# OpenPasture Agent Kit
+# Openpasture
 
-Give any AI agent the tools, knowledge, and skills to help manage a pasture-based
-livestock farm — without handing the farm over to it.
+Openpasture is the data and decision layer between what the world knows about
+your land and the collars that move your herd.
 
-<CardGroup cols={3}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Install the kit and run your first farm workflow in minutes.
-  </Card>
-  <Card title="Core Concepts" icon="book-open" href="/core-concepts">
-    Farms, paddocks, herds, observations, and the daily MOVE / STAY / NEEDS_INFO loop.
-  </Card>
-  <Card title="Self-Hosting" icon="server" href="/self-hosting">
-    Run OpenPasture locally with SQLite and your preferred agent.
-  </Card>
-</CardGroup>
+Every day, for every herd, it answers one question:
 
-## What the kit provides
+> Should the herd move today, and if so, where?
 
-<CardGroup cols={2}>
-  <Card title="Executable tools" icon="wrench">
-    Farm setup, observation recording, movement recommendations, morning briefs, knowledge search — all callable from CLI, MCP, or Hermes.
-  </Card>
-  <Card title="Portable skills" icon="graduation-cap">
-    Operational runbooks that teach an agent how to onboard a farm, assess pasture, plan rotations, and ingest knowledge.
-  </Card>
-  <Card title="Curated knowledge" icon="brain">
-    Structured lessons from trusted practitioners like Greg Judy, Joel Salatin, and Richard Perkins — applied to your specific land and conditions.
-  </Card>
-  <Card title="Any agent surface" icon="plug">
-    Works through CLI, MCP (Claude, ChatGPT, Cursor), Hermes, or any future connector. Your farm data travels with you.
-  </Card>
-</CardGroup>
+It works that out from the land, the animals, and your farm's own history. It
+tells you why. When you allow it, it sends the new boundary to the collars and
+checks that they got it. You stay the operator.
+
+## Two things it sits between
+
+- **Alexandria** knows the land. Give it a point or a paddock and it returns
+  current, past, and forecast weather, the latest satellite imagery, drought
+  and climate history, hazards, soil, vegetation, species, water, and terrain,
+  each with its sources. It also carries the grazing knowledge: research,
+  practitioner videos, and the hands-on wisdom of graziers like Greg Judy.
+- **OpenCollar** knows where the animals are. Collars report each animal's
+  position and accept boundary updates that move the herd.
+
+Openpasture holds what neither one has: your farm's structure, the
+calculations that turn raw data into grazing signals, and the record of every
+decision.
 
 ## The daily loop
 
-Every day, the system helps answer four questions:
-
 <Steps>
-  <Step title="What is true about the farm right now?">
-    Observations, weather, satellite data, and stored farm state assemble the current picture.
+  <Step title="Assemble">
+    Collar positions since the last decision, a land report for the current
+    paddock and the candidates, your grazing history, and relevant knowledge.
   </Step>
-  <Step title="Should the herd MOVE, STAY, or does the agent NEEDS_INFO?">
-    The morning brief produces a practical recommendation with reasoning.
+  <Step title="Derive">
+    Grazing pressure, rest days, forage, recovery, a feed budget against the
+    forecast, and weather risk.
   </Step>
-  <Step title="Why does that recommendation make sense?">
-    Every recommendation includes the data sources, knowledge entries, and assumptions behind it.
+  <Step title="Decide">
+    `STAY`, `MOVE` to a specific boundary, or `NEEDS_INFO`. With reasons, a
+    confidence, and the one observation that would help most.
   </Step>
-  <Step title="What single observation would reduce uncertainty most?">
-    When the answer is not clear, the agent asks for the one thing that would change the call.
+  <Step title="Review">
+    You approve, change, or override. How much review is required is your
+    setting.
+  </Step>
+  <Step title="Act">
+    The boundary goes to the collars. Openpasture confirms each collar received
+    it.
+  </Step>
+  <Step title="Learn">
+    Whether the herd held the line, how they grazed, how the paddock recovered.
+    That becomes tomorrow's context.
   </Step>
 </Steps>
 
-## Connect any agent
+## You decide how much to hand over
 
-OpenPasture is not locked to one AI. It is the portable farm operating layer that makes
-any capable agent useful on your specific operation.
+- `propose`: every move waits for your approval. This is the default.
+- `apply_unless_stopped`: a move is sent at a set time unless you stop it.
+- `apply`: moves are sent when decided. You review after.
 
-<CardGroup cols={3}>
-  <Card title="CLI" icon="terminal" href="/cli">
-    JSON-in, JSON-out interface for agents, scripts, and cron.
-  </Card>
-  <Card title="MCP" icon="plug" href="/mcp-connector">
-    Expose tools and skills to Claude, ChatGPT, Cursor, or any MCP client.
-  </Card>
-  <Card title="Hermes" icon="cable" href="/hermes-adapter">
-    Validated adapter for the Hermes agent runtime.
-  </Card>
-</CardGroup>
+An override is never an error. It is the most useful signal the system gets,
+and it is kept with the decision it replaced.
 
-## Philosophy
+## Where to start
 
-- The farmer remains the operator. The agent extends attention, memory, and execution.
-- The land is the feedback mechanism.
-- Good grazing is contextual, not formulaic.
-- Observation is scarce — direct it carefully.
-- Leave room for uncertainty rather than pretending precision.
+- [Quickstart](/quickstart): install the kit and run a first decision.
+- [Core Concepts](/core-concepts): herds, decisions, autonomy, and the record.
+- [Decision Engine](/decision-engine): how one decision is made and recorded.
+- [Self-Hosting](/self-hosting): run it yourself with SQLite.
+
+The engine works with any capable agent through the [CLI](/cli),
+[MCP](/mcp-connector), or [Hermes](/hermes-adapter). The farm view, with the
+map and decision timeline, is part of [Hosted Cloud](/hosted-cloud).
 
 <Info>
-  OpenPasture is licensed AGPL-3.0-only. The hosted cloud product wraps the open
-  core with managed infrastructure, auth, and support.
-  [Learn more about the hosted option →](https://openpasture.com)
+  Land reports and collars ship with offline stand-ins: fixture land reports and
+  a simulated collar gateway. The whole loop runs without hardware or accounts.
+  Real land data needs Alexandria configured. Real collars need the HTTP
+  gateway. See [Land Reports](/land-reports) and [Collars](/collars).
 </Info>
+
+Openpasture is licensed AGPL-3.0-only.

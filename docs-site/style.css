@@ -1,0 +1,65 @@
+/* ==========================================================================
+   OpenPasture docs theme
+
+   Pulls Mintlify toward the marketing site at openpasture.dev: near-black
+   ground, pink accent, hairline borders, and square corners. Mono type comes
+   from docs.json; this file handles surfaces and edges.
+   ========================================================================== */
+
+:root {
+  --op-void: #06070a;
+  --op-panel: #0c0e13;
+  --op-pink: #ff4f7b;
+  --op-pink-hi: #ff8fa8;
+  --op-hairline: rgba(255, 255, 255, 0.14);
+  --op-hairline-soft: rgba(255, 255, 255, 0.07);
+}
+
+.dark {
+  --background-color: var(--op-void);
+}
+
+.dark body {
+  background-color: var(--op-void);
+}
+
+/* Square everything off. Rounded corners read as consumer SaaS; the rest of
+   the brand is grid-locked and hard-edged. */
+.dark pre,
+.dark code,
+.dark table,
+.dark img,
+.dark button,
+.dark input,
+.dark [class*='rounded'] {
+  border-radius: 0 !important;
+}
+
+/* Hairline borders instead of filled panel edges. */
+.dark hr,
+.dark table,
+.dark th,
+.dark td {
+  border-color: var(--op-hairline-soft) !important;
+}
+
+.dark pre {
+  background-color: #08090d !important;
+  border: 1px solid var(--op-hairline-soft);
+}
+
+/* Inline code picks up the accent, matching the marketing site's .prose code. */
+.dark :not(pre) > code {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--op-hairline-soft);
+  color: var(--op-pink-hi);
+}
+
+.dark a {
+  text-underline-offset: 3px;
+}
+
+::selection {
+  background: var(--op-pink);
+  color: var(--op-void);
+}

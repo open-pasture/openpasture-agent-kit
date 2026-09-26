@@ -1,20 +1,32 @@
 ---
 title: "Knowledge"
-description: "How OpenPasture stores curated practitioner lessons and retrieves them during planning."
+description: "Where Openpasture's grazing knowledge comes from and how decisions cite it."
 icon: "brain"
 ---
 
 # Knowledge
 
-The knowledge base is the agent's durable ancestral memory.
+Openpasture should not lean only on generic model priors. It reasons with
+lessons from trusted practitioners and research, and connects them to the
+condition of a specific farm on a specific day.
 
-OpenPasture should not lean only on generic model priors. It should reason with
-curated lessons from trusted practitioners and connect those lessons to the daily
-condition of a specific farm.
+## Sources
+
+- **Alexandria** is the primary source. It carries research papers,
+  practitioner videos, and hands-on grazing wisdom from graziers like Greg
+  Judy. The engine queries it for the situation at hand.
+- **The curated local corpus** in `knowledge.db`, starting from `seed/`. It
+  holds distilled lessons with stable ids and attribution, plus sources the
+  farmer adds.
+
+The curated corpus still matters. Decisions cite lessons by
+`knowledge_entry_id`, and those ids should stay readable years later. The seed
+also keeps decisions grounded when Alexandria is not configured or cannot be
+reached.
 
 ## Entry Types
 
-Every source is distilled into `KnowledgeEntry` records:
+Every curated lesson is a `KnowledgeEntry`:
 
 - `principle`: a durable rule of thumb,
 - `technique`: a repeatable management move,
@@ -23,31 +35,37 @@ Every source is distilled into `KnowledgeEntry` records:
 
 ## Retrieval
 
-When the agent evaluates a movement decision, it should retrieve the most
-relevant lessons for the current farm context. It should not load the whole
-corpus blindly or cite generic wisdom without a usable link to the situation.
+During a decision, the agent searches for the situation at hand, such as
+residual before heavy rain or rest in a summer slump, not the whole corpus.
+Lessons that shaped the call are recorded on the decision. Generic wisdom with
+no link to the situation should not be cited.
+
+```bash
+openpasture knowledge search "leaving residual before rain" --limit 5
+```
+
+## Adding Sources
+
+Search first. Ingest only what Alexandria does not already carry: the farmer's
+own notes, local extension material, or trusted sources not yet indexed. The
+`knowledge-ingestion` skill walks through it.
 
 ## Seed Knowledge
 
-The repo includes starter seed knowledge so a first local test can be useful
-before a farmer adds their own sources. On first run, the local knowledge store
-loads seed entries when the knowledge database is empty.
-
-Control seed loading:
+On first run, the local knowledge store loads the seed when the knowledge
+database is empty.
 
 ```bash
 export OPENPASTURE_LOAD_SEED=0 # skip auto-load
 export OPENPASTURE_LOAD_SEED=1 # force reload
 ```
 
-## Productization Direction
+## Releases
 
-The long-term shape is a clean split:
-
-- `farm.db` holds farmer-specific operational data,
-- `knowledge.db` holds shared ancestral knowledge,
-- knowledge releases can be versioned and updated,
-- farmer records are not overwritten by knowledge updates.
+- `farm.db` holds the farm's own data, including the decision record.
+- `knowledge.db` holds the shared curated lessons.
+- Knowledge releases can be versioned and updated without touching farm data.
+- Lesson ids cited by past decisions should keep resolving after an update.
 
 Source docs: `docs/knowledge-base.md` and
 `docs/knowledge-productization.md`.

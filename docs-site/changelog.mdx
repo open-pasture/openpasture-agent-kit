@@ -1,13 +1,26 @@
 ---
 title: "Changelog"
-description: "Notable documentation and alpha validation history for OpenPasture."
+description: "Notable documentation and alpha validation history for Openpasture."
 icon: "clock"
 ---
 
 # Changelog
 
-This page is intentionally modest until OpenPasture has formal versioned docs
+This page is intentionally modest until Openpasture has formal versioned docs
 releases.
+
+## Unreleased
+
+- Reframed the docs around the grazing decision engine between Alexandria and
+  OpenCollar.
+- Added Decision Engine, Land Reports, and Collars pages.
+- Documented the decision cycle, autonomy settings (`propose`,
+  `apply_unless_stopped`, `apply`), and the decision record.
+- Documented the land report and collar settings, with fixture and simulated
+  defaults.
+- `movement_decision` and `approve_plan` are gone from the tool surface. Use
+  `run_decision_cycle`, `submit_grazing_decision`, and `respond_to_decision`.
+- Added the `daily-grazing-decision` skill.
 
 ## Current Docs Baseline
 

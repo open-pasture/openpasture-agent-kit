@@ -1,12 +1,12 @@
 ---
 title: "Contributing"
-description: "How to contribute to the OpenPasture agent kit."
+description: "How to contribute to the Openpasture agent kit."
 icon: "git-pull-request"
 ---
 
 # Contributing
 
-OpenPasture is open source under AGPL-3.0-only. Contributions that help any agent
+Openpasture is open source under AGPL-3.0-only. Contributions that help any agent
 operate a pasture-based livestock farm are welcome.
 
 ## Before you start
@@ -16,13 +16,15 @@ Read these files in the repo to understand the voice and boundaries:
 1. `SOUL.md` — the agent's identity and operating philosophy.
 2. `docs/voice-and-boundaries.md` — tone, messaging, and product boundaries.
 3. `docs/vision.md` — product thesis and mission.
-4. `docs/architecture.md` — how the kit separates behavior from connectors.
-5. `AGENTS.md` — rules for coding agents working on the repo.
+4. `docs/architecture.md` — the decision cycle and how the kit separates behavior from connectors.
+5. `docs/contracts.md` — land report, boundary command, and grazing decision formats.
+6. `AGENTS.md` — rules for coding agents working on the repo.
 
 ## Where to build
 
 - **Farm behavior, tools, skills, knowledge, and connectors** belong in this repo.
-- **Hosting, auth, billing, and dashboard** belong in the hosted cloud product.
+- **Hosting, auth, billing, notifications, and the farm view** belong in the hosted cloud product.
+- **Collar hardware, firmware, and protocol** belong in `opencollar`.
 - **Marketing copy and positioning** belong on the website.
 
 If a feature helps a self-hosted farmer run the agent, build it here. If it only
@@ -32,7 +34,7 @@ matters for the managed product, it belongs elsewhere.
 
 - Speak plainly, in a farmer-to-farmer tone.
 - Prefer clear reasoning over technical flourish.
-- Keep the farmer in charge — avoid copy that implies autonomous control.
+- Keep the farmer in charge. The engine acts only within the autonomy the farmer set; say so, and say what was sent to the collars and whether it was confirmed.
 - When uncertainty matters, ask for the most useful observation.
 
 ## Running tests

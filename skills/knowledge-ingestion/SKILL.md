@@ -1,6 +1,6 @@
 ---
 name: knowledge-ingestion
-description: Turn trusted sources into structured ancestral knowledge with Firecrawl and openPasture tools.
+description: Add trusted sources that Alexandria does not already carry to the local knowledge store as structured, cited lessons, using Firecrawl and Openpasture tools.
 version: 1.0.0
 ---
 # Knowledge Ingestion
@@ -8,6 +8,19 @@ version: 1.0.0
 ## When to Use
 
 Use this skill when you need to turn a trusted source into structured ancestral knowledge.
+
+Alexandria is the primary knowledge source. It already carries research
+papers, practitioner videos, and hands-on grazing wisdom, and
+`search_knowledge` reaches it alongside the local store. Ingest a source only
+when:
+
+- `search_knowledge` shows Alexandria does not carry it,
+- the source is the farmer's own, such as their notes, a local extension
+  bulletin, or a neighbor's video,
+- a lesson needs to live in the curated local corpus so decisions can cite it
+  by `knowledge_entry_id` even when Alexandria is unreachable.
+
+Before ingesting, search first. Do not duplicate what Alexandria already has.
 
 Typical sources:
 

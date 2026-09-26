@@ -1,20 +1,27 @@
 # Cloud Handoff
 
 This document captures the current alpha baseline so the next repository can
-build the hosted OpenPasture layer without re-discovering what was already
+build the hosted Openpasture layer without re-discovering what was already
 validated in the OSS agent.
 
 ## Current Baseline
 
 The Hermes-backed OSS agent is working as a self-hosted alpha.
 
-The validated core loop is:
+The validated alpha loop was:
 
 1. onboard the farm
 2. store paddocks and herd state
 3. record a field observation
 4. generate a morning brief
 5. return a `MOVE`, `STAY`, or `NEEDS_INFO` recommendation
+
+The engine now runs that loop as a recorded decision cycle for every herd:
+assemble context from collars and an Alexandria land report, decide, apply the
+farmer's autonomy setting, send the boundary, confirm it with the collars, and
+evaluate the outcome later. Land and collar connectors run on offline fixtures
+and a simulated gateway by default. The cycle has not yet been validated live
+against real collars; treat that as the next validation milestone.
 
 ## What Was Hardened
 
@@ -51,7 +58,9 @@ This repo should continue to own:
 - the agent runtime and plugin surface
 - farm onboarding primitives
 - observation storage and normalization
-- grazing recommendation logic
+- the decision cycle, the decision record, and autonomy gating
+- grazing signal calculations
+- the land connector (Alexandria) and the collar connector (OpenCollar)
 - ancestral knowledge logic
 - self-hosted scheduling
 - self-hosted validation and packaging
@@ -66,7 +75,9 @@ The separate cloud repo should own:
 - billing and subscriptions
 - support/admin tooling
 - proprietary onboarding UI
-- proprietary farm and brief UI surfaces
+- the farm view: herd map, current and proposed boundary, decision timeline,
+  paddock history, and analytics
+- notifications and approvals for decisions waiting on the farmer
 - managed product analytics and operations
 
 ## Residual Quirks To Keep In Mind
@@ -90,10 +101,14 @@ Good first milestones:
 - provision a hosted runtime per farm or tenant
 - expose a guided onboarding UI over the existing setup flow
 - wire a hosted messaging channel
-- show current farm state and latest brief in a proprietary UI
+- show the herd map and decision timeline, reading `list_decisions`,
+  `get_decision`, `get_boundary_status`, and `get_herd_positions`
+- collect approvals and map overrides through `respond_to_decision`
+- notify the farmer when a decision is waiting or a boundary did not confirm
 - add support/admin tooling for hosted operations
 
-Avoid starting by rewriting the recommendation logic in the cloud layer.
+Avoid starting by rewriting the decision logic in the cloud layer, and never
+send boundary commands from the cloud around the kit.
 
 ## Reading Order
 
@@ -104,3 +119,4 @@ If you are picking up work later, read these in order:
 3. `docs/alpha-validation.md`
 4. `docs/cloud-boundary.md`
 5. `docs/architecture.md`
+6. `docs/contracts.md`

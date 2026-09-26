@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenPasture onboarding summary</title>
+    <title>Openpasture onboarding summary</title>
     <style>
       :root {
         color: #e8e8e6;
@@ -138,7 +138,7 @@
   <body>
     <main>
       <section class="card">
-        <h1 id="title">OpenPasture farm onboarding</h1>
+        <h1 id="title">Openpasture farm onboarding</h1>
         <p id="summary" class="muted">Waiting for onboarding details from ChatGPT.</p>
       </section>
       <section class="card">
@@ -206,7 +206,7 @@
 
         document.getElementById("title").textContent = farm?.name
           ? `${farm.name} onboarding`
-          : "OpenPasture farm onboarding";
+          : "Openpasture farm onboarding";
         document.getElementById("summary").textContent = status.complete
           ? "Core setup is ready. The farmer can add observations or move into daily planning."
           : "ChatGPT is collecting the basic farm, herd, paddock, and current-location details.";
@@ -279,7 +279,7 @@
           });
           render(result?.structuredContent || result);
         } catch (error) {
-          latestQuestion = "Ask ChatGPT to check OpenPasture onboarding status again.";
+          latestQuestion = "Ask ChatGPT to check Openpasture onboarding status again.";
           document.getElementById("next-question").textContent = latestQuestion;
         } finally {
           button.disabled = false;

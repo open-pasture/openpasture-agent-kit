@@ -1,14 +1,20 @@
 # ChatGPT Farm Onboarding App
 
 This document keeps the ChatGPT app submission material close to the canonical
-OpenPasture agent behavior. The app is intentionally narrow: it helps a farmer
+Openpasture agent behavior. The app is intentionally narrow: it helps a farmer
 set up the first farm, herd, paddocks, current paddock, and optional starting
 field notes.
 
+The app does not run grazing decisions, change autonomy, or talk to collars.
+Collar linking, `set_autonomy`, and the decision tools stay in the full MCP
+connector and the farm view, where the farmer can see what a boundary change
+means before approving it. The onboarding summary should end by pointing the
+farmer there, not by implying the herd will now move on its own.
+
 ## App Listing Draft
 
-- App name: OpenPasture Farm Onboarding
-- Short description: Set up an OpenPasture farm record from a ChatGPT
+- App name: Openpasture Farm Onboarding
+- Short description: Set up an Openpasture farm record from a ChatGPT
   conversation, then show a clear onboarding summary.
 - Support contact: hello@openpasture.com
 - Privacy policy URL: https://openpasture.com/privacy
@@ -28,7 +34,7 @@ The public ChatGPT app should expose only the onboarding-specific tools from
   `location_hint` notes when coordinates are uncertain.
 - `record_starting_observation`: writes one farmer-provided field note during
   onboarding. It can accept a ChatGPT `image_file` parameter for pasture photos;
-  hosted OpenPasture should copy temporary ChatGPT file URLs into durable media
+  hosted Openpasture should copy temporary ChatGPT file URLs into durable media
   storage before recording the observation.
 - `render_onboarding_summary`: read-only render tool that attaches
   `ui://openpasture/onboarding-summary-v2.html` through the MCP Apps standard
@@ -44,7 +50,7 @@ for the first public ChatGPT app submission.
 Use these prompts during Developer Mode testing and as starting submission test
 cases:
 
-1. "Use the OpenPasture farm onboarding app. Help me set up Willow Creek in
+1. "Use the Openpasture farm onboarding app. Help me set up Willow Creek in
    America/Chicago with 28 cattle in Home paddock. I also have North and South
    paddocks."
 2. "Check what setup details are still missing before saving anything."

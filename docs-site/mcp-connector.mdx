@@ -1,12 +1,12 @@
 ---
 title: "MCP"
-description: "Expose OpenPasture tools and skills to MCP-capable agents."
+description: "Expose Openpasture tools and skills to MCP-capable agents."
 icon: "plug"
 ---
 
 # MCP
 
-The MCP connector lets MCP-capable clients reach the same OpenPasture tools and
+The MCP connector lets MCP-capable clients reach the same Openpasture tools and
 skills as the CLI and Hermes adapter.
 
 Install the optional MCP dependencies:
@@ -33,12 +33,19 @@ python -m openpasture.connectors.mcp
 
 The connector exposes tools for:
 
-- listing OpenPasture tool specs,
-- running one OpenPasture tool with JSON arguments,
+- listing Openpasture tool specs,
+- running one Openpasture tool with JSON arguments,
 - listing portable skills,
 - reading one portable skill.
 
 It also exposes resources for tool metadata and skill documents.
+
+Every tool in the catalog is reachable this way, including the decision tools:
+`run_decision_cycle`, `get_decision`, `list_decisions`, `respond_to_decision`,
+`get_boundary_status`, and `set_autonomy`. A farmer can ask "should the herd
+move today?" in Claude or ChatGPT and approve or change the answer in the same
+conversation. The autonomy setting applies the same way it does everywhere
+else.
 
 ## Hosted MCP
 

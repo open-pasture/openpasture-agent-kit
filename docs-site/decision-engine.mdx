@@ -1,0 +1,97 @@
+---
+title: "Decision Engine"
+description: "How Openpasture makes, sends, and records one grazing decision for one herd."
+icon: "route"
+---
+
+# Decision Engine
+
+Every decision window, daily by default, the engine makes one decision for
+each herd. It keeps everything about that decision on one record so it can be
+replayed later: what the engine saw, what it decided, what the farmer did, what
+the collars did, and what the land did.
+
+## One cycle
+
+`run_decision_cycle` runs the whole cycle for a herd. An agent can also run the
+steps one at a time with the `daily-grazing-decision` skill.
+
+| Step | Tool | What happens |
+| --- | --- | --- |
+| Assemble | `assemble_decision_context` | Collar summary since the last decision, land reports for the current paddock and candidates, grazing history, recent observations, the last decision and its outcome. |
+| Derive | `compute_grazing_signals` | Pressure, rest, forage, recovery, feed budget, risk, and behavior. |
+| Look deeper | `get_land_report`, `get_herd_positions`, `search_knowledge` | Optional. The agent pulls what it needs to settle the call. |
+| Decide | `submit_grazing_decision` | `STAY`, `MOVE` to a boundary, or `NEEDS_INFO`, with reasons, confidence, and the inputs used. |
+| Review | `respond_to_decision` | The farmer approves, modifies, or rejects, as their autonomy setting requires. |
+| Act | `get_boundary_status` | The boundary command goes to the collars. Each acknowledgement is recorded. |
+| Learn | `evaluate_decision_outcome` | On later cycles: did the herd hold the line, what residual was left, how did the paddock recover. |
+
+Read decisions with `get_decision` and `list_decisions`.
+`generate_morning_brief` wraps the latest decisions in plain language.
+
+## The three answers
+
+- `STAY`: the herd stays inside its current boundary for this window.
+- `MOVE`: the herd moves to a specific land unit and boundary. A move can use
+  an `open_then_close` transition, which opens a corridor to the new paddock
+  and closes behind the herd after a set time.
+- `NEEDS_INFO`: the call turns on something the data cannot answer. The
+  decision names the one observation that would settle it, such as grass
+  height at the gate end or whether a tank is full.
+
+## Autonomy
+
+Set per herd with `set_autonomy`.
+
+| Setting | What happens after a `MOVE` is decided |
+| --- | --- |
+| `propose` (default) | Nothing is sent. The decision waits for the farmer. |
+| `apply_unless_stopped` | The boundary is sent at the set time unless the farmer stops it first. |
+| `apply` | The boundary is sent now. The farmer reviews after. |
+
+`STAY` and `NEEDS_INFO` never send anything.
+
+## Status
+
+A decision moves through:
+
+`proposed` → `approved` | `modified` | `rejected` → `sent` → `active` → `evaluated`
+
+- `sent` means the command left the engine. `active` means enough collars
+  confirmed it. Collars that did not confirm are named to the farmer.
+- When the farmer modifies a decision, the farmer's boundary is the one sent.
+  The engine's original stays on the record.
+- A rejection sends nothing. The farmer's note is kept as signal for the next
+  decision.
+
+## Example
+
+```json
+{
+  "decision_id": "gd_01J8...",
+  "herd_id": "herd_1",
+  "action": "MOVE",
+  "from_land_unit_id": "paddock_home_3",
+  "to_land_unit_id": "paddock_home_4",
+  "reasoning": [
+    "Paddock 3 is at roughly 4 inches of residual by collar pressure and imagery.",
+    "Paddock 4 has rested 38 days and imagery shows full recovery.",
+    "12 mm of rain is expected tomorrow. Moving today keeps the herd off wet ground on the low side of 3."
+  ],
+  "confidence": "high",
+  "autonomy": "propose",
+  "status": "proposed"
+}
+```
+
+The full shape, including inputs, farmer response, boundary command, and
+outcome, is in `docs/contracts.md`.
+
+## When no agent is connected
+
+A heuristic fallback makes the decision from signals alone so the cycle still
+runs on schedule. Its reasoning is simpler and its confidence lower. An agent
+brain with the skills loaded makes better calls.
+
+Source docs: `docs/vision.md`, `docs/architecture.md`, `docs/contracts.md`, and
+`skills/daily-grazing-decision/SKILL.md`.

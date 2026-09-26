@@ -7,9 +7,11 @@ version: 1.0.0
 
 ## When To Use
 
-Use this skill when a farmer provides a map screenshot, dropped pin, survey report, address, parcel clue, or hand-drawn boundary and wants OpenPasture to show their farm on a GIS map.
+Use this skill when a farmer provides a map screenshot, dropped pin, survey report, address, parcel clue, or hand-drawn boundary and wants Openpasture to show their farm on a GIS map.
 
-OpenPasture is the toolkit and storage layer. The agent is responsible for reading the image or document, extracting the visible clues, and calling OpenPasture tools with structured geospatial data.
+Openpasture is the toolkit and storage layer. The agent is responsible for reading the image or document, extracting the visible clues, and calling Openpasture tools with structured geospatial data.
+
+Geometry matters beyond the map. The engine uses paddock polygons to request land reports and to build the boundaries it sends to collars. Draft geometry is fine for land reports. Before a boundary built from draft geometry goes to collars, ask the farmer to confirm the paddock outline.
 
 ## Procedure
 
@@ -24,6 +26,7 @@ OpenPasture is the toolkit and storage layer. The agent is responsible for readi
 9. Preserve uncertainty in `warnings`; do not claim legal, survey-grade, or parcel-accurate boundaries.
 10. Call `save_geo_onboarding_draft` for a full draft or `upsert_land_unit` for one follow-up edit.
 11. Return the map confirmation link from the tool so the farmer can review and edit the boundary.
+12. Once the farm boundary is saved, a `get_land_report` call for it with `soil`, `water`, and `terrain` sections is a good first check. It confirms the geometry is in the right place and gives the farmer something useful to look at.
 
 ## Screenshot Guidance
 
@@ -71,4 +74,4 @@ Prefer this shape for `save_geo_onboarding_draft`:
 
 ## Success Criteria
 
-The farmer receives a map link with the farm and pastures rendered as editable drafts. The stored geometry is good enough for visual confirmation, future NDVI/pasture analysis, and follow-up editing, but it remains clearly marked as approximate until confirmed.
+The farmer receives a map link with the farm and pastures rendered as editable drafts. The stored geometry is good enough for visual confirmation, land reports, and follow-up editing, but it remains clearly marked as approximate until confirmed. Confirmed paddock geometry is what the engine uses for collar boundaries.

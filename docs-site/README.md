@@ -1,11 +1,12 @@
-# OpenPasture Mintlify Docs
+# Openpasture Mintlify Docs
 
-This directory contains the public OpenPasture docs site.
+This directory contains the public Openpasture docs site.
 
 It uses Mintlify's current `docs.json` configuration format and adapts source
 material from the agent kit docs. The source-of-truth files remain in the repo
 root and `docs/`, especially `SOUL.md`, `docs/voice-and-boundaries.md`,
-`docs/vision.md`, `docs/architecture.md`, and `docs/cloud-boundary.md`.
+`docs/vision.md`, `docs/architecture.md`, `docs/contracts.md`, and
+`docs/cloud-boundary.md`.
 
 ## Local Preview
 
@@ -28,6 +29,7 @@ the agent kit source files:
   `../docs/voice-and-boundaries.md`
 - architecture and repo ownership: `../docs/architecture.md` and
   `../docs/cloud-boundary.md`
+- data formats: `../docs/contracts.md`
 - docs-site behavior: this directory's `docs.json` and `.mdx` pages
 
 When a docs change creates durable product guidance, update the source file under

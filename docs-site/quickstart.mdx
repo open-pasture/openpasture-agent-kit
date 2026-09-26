@@ -1,19 +1,21 @@
 ---
 title: "Quickstart"
-description: "Install the OpenPasture agent kit and run your first farm workflow."
+description: "Install the Openpasture kit and run your first grazing decision."
 icon: "rocket"
 ---
 
 # Quickstart
 
-Get a local farm running in under five minutes.
+Get a local farm running and make a first decision in a few minutes. Everything
+here runs offline: land reports come from fixtures and collars are simulated.
 
 ## Requirements
 
 - Python 3.11+
 - An LLM provider key for your agent runtime
 - Optional: Hermes for the Hermes adapter
-- Optional: `FIRECRAWL_API_KEY` for external web knowledge ingestion
+- Optional: `FIRECRAWL_API_KEY` for real Alexandria land reports and knowledge,
+  and for web knowledge ingestion
 
 ## Install
 
@@ -25,7 +27,7 @@ Get a local farm running in under five minutes.
     pip install "git+https://github.com/NousResearch/hermes-agent.git@1cec910b6a064d4e4821930be5cfaaf6145a2afd"
     ```
   </Step>
-  <Step title="Install the agent kit">
+  <Step title="Install the kit">
     ```bash
     pip install -e .
     ```
@@ -35,9 +37,11 @@ Get a local farm running in under five minutes.
     export OPENPASTURE_STORE=sqlite
     export OPENPASTURE_DATA_DIR="$HOME/.openpasture"
     export OPENPASTURE_BRIEF_TIME="06:00"
+    export OPENPASTURE_COLLAR_GATEWAY=simulated
     ```
 
-    Add `FIRECRAWL_API_KEY` only if you want external knowledge ingestion.
+    See [Environment Variables](/environment-variables) for Alexandria and real
+    collar settings.
   </Step>
 </Steps>
 
@@ -55,28 +59,44 @@ Create a simple farm:
 openpasture tool run setup_initial_farm --json '{"name":"Willow Creek","timezone":"America/Chicago","herd":{"id":"herd_1","species":"cattle","count":28},"paddocks":[{"id":"paddock_home","name":"Home","status":"grazing"}]}'
 ```
 
-Generate the first morning brief:
+## First decision
+
+Keep the herd on the default `propose` setting, so nothing is sent without you:
+
+```bash
+openpasture tool run set_autonomy --json '{"herd_id":"herd_1","autonomy":"propose"}'
+```
+
+Run one decision cycle for the herd:
+
+```bash
+openpasture tool run run_decision_cycle --json '{"herd_id":"herd_1"}'
+```
+
+The result is a `GrazingDecision`: `STAY`, `MOVE` to a specific boundary, or
+`NEEDS_INFO`, with reasons, a confidence, and the one observation that would
+help most. Under `propose` it waits for you.
+
+Look at it, then answer it:
+
+```bash
+openpasture tool run list_decisions --json '{"herd_id":"herd_1"}'
+openpasture tool run respond_to_decision --json '{"decision_id":"gd_...","response":"approve"}'
+openpasture tool run get_boundary_status --json '{"decision_id":"gd_..."}'
+```
+
+Read it the way a farmer would:
 
 ```bash
 openpasture tool run generate_morning_brief --json '{}'
 ```
 
-The brief returns a practical recommendation — `MOVE`, `STAY`, or `NEEDS_INFO` — with
-reasoning visible enough for a farmer to judge.
+Arguments shown are the common case. `openpasture tools list` prints each
+tool's exact schema.
 
 ## Next steps
 
-<CardGroup cols={2}>
-  <Card title="CLI Reference" icon="terminal" href="/cli">
-    Full command reference for the openpasture CLI.
-  </Card>
-  <Card title="MCP Connector" icon="plug" href="/mcp-connector">
-    Expose the kit to Claude, ChatGPT, Cursor, or any MCP client.
-  </Card>
-  <Card title="Hermes Adapter" icon="cable" href="/hermes-adapter">
-    Use the validated Hermes integration.
-  </Card>
-  <Card title="Knowledge" icon="brain" href="/knowledge">
-    Add curated practitioner lessons to the knowledge base.
-  </Card>
-</CardGroup>
+- [Decision Engine](/decision-engine): what happens inside one cycle.
+- [CLI](/cli): the full command reference.
+- [MCP](/mcp-connector): connect Claude, ChatGPT, Cursor, or any MCP client.
+- [Collars](/collars): move from the simulated gateway to real collars.

@@ -1,6 +1,6 @@
 ---
 title: "Environment Variables"
-description: "Configuration used by the OpenPasture agent kit."
+description: "Configuration used by the Openpasture agent kit."
 icon: "settings"
 ---
 
@@ -18,7 +18,27 @@ and hosted wrappers.
 | `OPENPASTURE_SKILLS_DIR` | Optional override for skill discovery. Defaults to the repo `skills/` directory. |
 | `OPENPASTURE_BRIEF_TIME` | Local scheduled morning brief time in `HH:MM` 24-hour format. |
 | `OPENPASTURE_LOAD_SEED` | Set `0` to skip seed loading or `1` to force seed reload. |
-| `FIRECRAWL_API_KEY` | Required for external web knowledge ingestion. Not required for onboarding or local briefs. |
+
+## Land And Collar Settings
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OPENPASTURE_LAND_SOURCE` | `auto` | Where land reports come from. `auto` uses Alexandria when `FIRECRAWL_API_KEY` is set and the open-data fallback otherwise. Also `alexandria`, `open_data`, or `fixture`. |
+| `FIRECRAWL_API_KEY` | unset | Alexandria access for land reports and knowledge, and web knowledge ingestion. Without it, land reports fall back to open data, and ingestion tools return a clear error. |
+| `OPENPASTURE_ALEXANDRIA_URL` | `https://api.firecrawl.dev` | Alexandria API base URL. |
+| `OPENPASTURE_ALEXANDRIA_LAND_PROVIDER` | `alexandria` | Alexandria provider that serves land reports. |
+| `OPENPASTURE_ALEXANDRIA_LAND_CAPABILITY` | `land_report` | Alexandria capability called for land reports. |
+| `OPENPASTURE_LAND_REPORT_MAX_AGE_HOURS` | `6` | How long a stored land report is reused before a new one is fetched. |
+| `OPENPASTURE_COLLAR_GATEWAY` | `simulated` | Collar gateway. `simulated` sends nothing to real collars. `http` talks to a collar gateway. |
+| `OPENPASTURE_COLLAR_GATEWAY_URL` | unset | Base URL of the collar gateway. Required when the gateway is `http`. |
+| `OPENPASTURE_COLLAR_GATEWAY_TOKEN` | unset | Optional bearer token for the collar gateway. |
+| `OPENPASTURE_BOUNDARY_ACTIVATION_THRESHOLD` | `1.0` | Share of a herd's collars that must confirm a boundary before it counts as active. |
+| `OPENPASTURE_COLLAR_FIX_RETENTION_DAYS` | `30` | How long raw collar fixes are kept. Summaries are kept for good. |
+
+`OPENPASTURE_BRIEF_TIME` also sets when each daily decision window starts.
+
+Leave `OPENPASTURE_COLLAR_GATEWAY=simulated` until you mean for boundaries to
+reach real animals. See [Land Reports](/land-reports) and [Collars](/collars).
 
 ## Convex Hosted Settings
 

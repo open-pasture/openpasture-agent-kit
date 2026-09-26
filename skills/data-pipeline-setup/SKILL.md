@@ -9,6 +9,13 @@ version: 1.0.0
 
 Use this skill when a farmer wants the agent to connect a web-based farm system and turn it into a recurring observation pipeline.
 
+Check first whether a pipeline is the right tool:
+
+- Weather, imagery, drought, soil, and other land data come from Alexandria through `get_land_report`. Do not scrape a weather site to get them.
+- OpenCollar positions and boundaries go through the collar connector, not a pipeline.
+- A pipeline is for everything else the farmer already uses: trail cameras, scales, water monitors, another vendor's web app. It produces observations the daily decision can read.
+- A pipeline against another virtual-fence vendor's web app is read-only. It can bring positions or alerts in as observations. It cannot send boundaries. Say so.
+
 Examples:
 
 - "Set up a data pipeline with NoFence."
@@ -85,7 +92,7 @@ If `skills/pipeline-{vendor}/SKILL.md` already exists, use it as the starting po
 ### Phase 3: Converse
 
 1. Tell the farmer what data the agent found in plain language.
-2. Ask which signals matter for the morning brief and how often they should be collected.
+2. Ask which signals would change a daily grazing decision and how often they should be collected.
 3. Confirm the intended cadence. Default to daily unless the data is unusually time-sensitive or static.
 4. Confirm the observation mapping before enabling anything.
 

@@ -1,0 +1,67 @@
+---
+title: "Land Reports"
+description: "How Openpasture gets weather, imagery, drought, soil, and other land data from Alexandria."
+icon: "map"
+---
+
+# Land Reports
+
+A land report is what is known about a place. The engine asks for one for the
+herd's current paddock and each candidate before every decision.
+
+## What you ask for
+
+`get_land_report` takes a GeoJSON geometry and the sections you need. Anything
+not requested is not fetched.
+
+| Section | What comes back |
+| --- | --- |
+| `weather` | Current conditions, history, and forecast. |
+| `imagery` | Latest satellite capture, NDVI stats, and history. |
+| `climate` | Drought history and precipitation and temperature normals. |
+| `hazards` | Flood, fire, and severe weather history. |
+| `soil` | Soil survey data. |
+| `vegetation` | Native, invasive, and plants toxic to livestock. |
+| `species` | Wildlife, pests, and pollinators. |
+| `water` | Surface water, wetlands, and floodplain. |
+| `terrain` | Elevation, slope, and aspect. |
+
+A `Point` is valid too; the report then covers a buffer around it. Coordinates
+are `[longitude, latitude]`.
+
+## What you get back
+
+Each section comes back with its data and its sources. A section that could
+not be filled returns `status: "unavailable"` with a reason. It is never
+silently dropped.
+
+The land connector stores each section as an observation linked to the land
+units it covers, keeping the `report_id` and sources as provenance. A decision
+lists the `land_report_ids` it used. Reports are cached by geometry, section,
+and time, so repeated decisions do not refetch unchanged data.
+
+## Providers
+
+| Provider | Use it for |
+| --- | --- |
+| Alexandria | Real data for your land. Needs `FIRECRAWL_API_KEY`. |
+| Open data | The fallback when no key is set. Fills weather; imagery comes back unavailable. |
+| Fixtures | Offline work, demos, and tests. Returns canned reports, not your land. |
+
+Pick with `OPENPASTURE_LAND_SOURCE` (`auto`, `alexandria`, `open_data`, or `fixture`). See
+[Environment Variables](/environment-variables).
+
+<Warning>
+  Fixture reports look real but describe no actual place. Do not make grazing
+  calls on real animals from fixture data.
+</Warning>
+
+## Reading a report well
+
+- Check the imagery capture date and cloud cover before trusting forage
+  estimates.
+- NDVI is a proxy for green cover, not grass height.
+- A fresh field note beats imagery when the two disagree.
+- Name unavailable sections to the farmer instead of guessing around them.
+
+Source docs: `docs/contracts.md` and `docs/architecture.md`.
