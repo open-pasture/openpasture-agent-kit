@@ -16,7 +16,7 @@ from openpasture.store.knowledge_protocol import KnowledgeStore
 from openpasture.store.protocol import FarmStore
 
 if TYPE_CHECKING:
-    from openpasture.briefing.scheduler import MorningBriefScheduler
+    from openpasture.briefing.scheduler import DecisionScheduler
 
 logger = getLogger(__name__)
 
@@ -41,7 +41,7 @@ _retriever: KnowledgeRetriever | None = None
 _active_farm_id: str | None = None
 _seed_loaded = False
 _soul_prompt: str | None = None
-_brief_scheduler: MorningBriefScheduler | None = None
+_brief_scheduler: DecisionScheduler | None = None
 _runtime_notices: list[str] = []
 
 
@@ -133,8 +133,8 @@ def init_brief_scheduler(
     config: MutableMapping[str, object] | None = None,
     *,
     delivery_handler: Callable[[str], bool] | None = None,
-) -> MorningBriefScheduler:
-    """Initialize recurring morning-brief scheduling."""
+) -> DecisionScheduler:
+    """Initialize recurring decision-cycle scheduling."""
     global _brief_scheduler
     if config is not None or delivery_handler is not None:
         context = toolkit_context.initialize(config, delivery_handler=delivery_handler)
@@ -148,7 +148,7 @@ def get_store() -> FarmStore:
     return toolkit_context.get_store()
 
 
-def get_brief_scheduler() -> MorningBriefScheduler:
+def get_brief_scheduler() -> DecisionScheduler:
     return toolkit_context.get_brief_scheduler()
 
 
@@ -274,7 +274,8 @@ def _build_workflow_context() -> list[str]:
 
     return [
         "Workflow mode: daily-operations",
-        "Focus on observations, morning briefs, movement decisions, and occasional maintenance for the active farm.",
+        "Focus on observations, the daily grazing decision for each herd, morning briefs, and occasional maintenance for the active farm.",
+        "For the daily decision, use assemble_decision_context, then submit_grazing_decision (STAY, MOVE with a boundary, or NEEDS_INFO with one question). The farmer's autonomy setting decides whether it waits for approval.",
         "Treat register_farm and setup_initial_farm as rare setup/admin tools, not part of the normal daily loop.",
         "When a farmer wants to connect a web-based data source, use the data-pipeline-setup skill and drive Firecrawl CLI directly, then persist the result with save_data_pipeline.",
     ]
@@ -343,7 +344,7 @@ def build_session_context(*, include_workflow_guidance: bool = True) -> str:
     ]
     herds = store.get_herds(farm_id)
     pipelines = _list_pipelines_safe(farm_id)
-    latest_plan = store.get_latest_plan(farm_id)
+    latest_decision = store.get_latest_decision(farm_id)
     recent_obs = store.get_recent_observations(farm_id, days=3)
 
     lines.extend(
@@ -362,9 +363,11 @@ def build_session_context(*, include_workflow_guidance: bool = True) -> str:
         lines.append(f"Primary herd: {herd.species} ({herd.count}) in paddock {herd.current_paddock_id or 'unknown'}")
     if paddocks:
         lines.append(f"Known paddocks: {_format_known_paddocks(paddocks)}")
-    if latest_plan:
+    if latest_decision:
+        target = f" to {latest_decision.land_unit_to_send()}" if latest_decision.land_unit_to_send() else ""
         lines.append(
-            f"Latest plan: {latest_plan.action} on {latest_plan.for_date.isoformat()} ({latest_plan.status})"
+            f"Latest decision: {latest_decision.action}{target} for the window starting "
+            f"{latest_decision.window.starts_at.isoformat()} ({latest_decision.status}, autonomy {latest_decision.autonomy})"
         )
     if recent_obs:
         lines.append(f"Recent observations available: {len(recent_obs)}")

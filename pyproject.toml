@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "openpasture-agent-kit"
 version = "0.1.0-alpha"
-description = "Agent kit for the openPasture farm operating toolkit"
+description = "Openpasture engine: the data and decision layer between Alexandria land reports and OpenCollar virtual-fence collars, packaged as an agent kit"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "AGPL-3.0-only" }

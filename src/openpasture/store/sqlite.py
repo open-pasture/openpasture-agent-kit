@@ -1,4 +1,4 @@
-"""SQLite backend for self-hosted openPasture deployments."""
+"""SQLite backend for self-hosted Openpasture deployments."""
 
 from __future__ import annotations
 
@@ -6,28 +6,42 @@ import json
 import sqlite3
 from uuid import uuid4
 from contextlib import contextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Iterator
+from zoneinfo import ZoneInfo
 
 from openpasture.domain import (
     Animal,
+    BoundaryAck,
+    BoundaryCommand,
+    Collar,
+    CollarSummary,
+    CueEvent,
     DailyBrief,
     DataPipeline,
+    DecisionInputs,
+    DecisionOutcome,
+    DecisionSettings,
+    DecisionWindow,
     Farm,
     FarmActivityAttachment,
     FarmActivityEvent,
     FarmActivityTarget,
     FarmerAction,
+    FarmerResponse,
     GeoFeature,
     GeoPoint,
     GeoPolygon,
+    GrazingDecision,
     Herd,
+    LandReport,
     LandUnit,
-    MovementDecision,
     Observation,
+    PositionFix,
     WaterSource,
 )
+from openpasture.domain.clock import as_utc, parse_datetime, utc_now, utc_text
 
 
 def _json_dumps(value: object) -> str:
@@ -233,6 +247,7 @@ class SQLiteStore:
                     media_thumbnail_url TEXT,
                     media_metadata TEXT NOT NULL DEFAULT '{}',
                     tags TEXT NOT NULL,
+                    provenance TEXT NOT NULL DEFAULT '{}',
                     FOREIGN KEY(farm_id) REFERENCES farms(id)
                 )
                 """
@@ -242,6 +257,8 @@ class SQLiteStore:
                 connection.execute("ALTER TABLE observations ADD COLUMN media_thumbnail_url TEXT")
             if "media_metadata" not in observation_columns:
                 connection.execute("ALTER TABLE observations ADD COLUMN media_metadata TEXT NOT NULL DEFAULT '{}'")
+            if "provenance" not in observation_columns:
+                connection.execute("ALTER TABLE observations ADD COLUMN provenance TEXT NOT NULL DEFAULT '{}'")
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS farm_activity_events (
@@ -344,41 +361,8 @@ class SQLiteStore:
                 )
                 """
             )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS movement_decisions (
-                    id TEXT PRIMARY KEY,
-                    farm_id TEXT NOT NULL,
-                    herd_id TEXT,
-                    for_date TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    reasoning TEXT NOT NULL,
-                    confidence TEXT NOT NULL,
-                    source_paddock_id TEXT,
-                    target_paddock_id TEXT,
-                    knowledge_entry_ids TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    farmer_feedback TEXT,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(farm_id) REFERENCES farms(id)
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS daily_briefs (
-                    id TEXT PRIMARY KEY,
-                    farm_id TEXT NOT NULL,
-                    generated_at TEXT NOT NULL,
-                    summary TEXT NOT NULL,
-                    recommendation_id TEXT NOT NULL,
-                    uncertainty_request TEXT,
-                    highlights TEXT NOT NULL,
-                    FOREIGN KEY(farm_id) REFERENCES farms(id),
-                    FOREIGN KEY(recommendation_id) REFERENCES movement_decisions(id)
-                )
-                """
-            )
+            self._bootstrap_decision_tables(connection)
+            self._bootstrap_land_and_collar_tables(connection)
 
     def _farm_from_row(self, row: sqlite3.Row) -> Farm:
         return Farm(
@@ -462,6 +446,7 @@ class SQLiteStore:
             media_thumbnail_url=row["media_thumbnail_url"],
             media_metadata=_json_loads(row["media_metadata"], {}),
             tags=_json_loads(row["tags"], []),
+            provenance=_json_loads(row["provenance"], {}),
         )
 
     def _activity_from_row(self, connection: sqlite3.Connection, row: sqlite3.Row) -> FarmActivityEvent:
@@ -547,37 +532,6 @@ class SQLiteStore:
             created_at=_datetime_from_text(row["created_at"]),
             resolved_at=_datetime_from_text(row["resolved_at"]) if row["resolved_at"] else None,
             resolution=row["resolution"],
-        )
-
-    def _plan_from_row(self, row: sqlite3.Row) -> MovementDecision:
-        return MovementDecision(
-            id=row["id"],
-            farm_id=row["farm_id"],
-            herd_id=row["herd_id"],
-            for_date=_date_from_text(row["for_date"]),
-            action=row["action"],
-            reasoning=_json_loads(row["reasoning"], []),
-            confidence=row["confidence"],
-            source_paddock_id=row["source_paddock_id"],
-            target_paddock_id=row["target_paddock_id"],
-            knowledge_entry_ids=_json_loads(row["knowledge_entry_ids"], []),
-            status=row["status"],
-            farmer_feedback=row["farmer_feedback"],
-            created_at=_datetime_from_text(row["created_at"]),
-        )
-
-    def _daily_brief_from_row(self, row: sqlite3.Row) -> DailyBrief:
-        recommendation = self.get_plan(row["recommendation_id"])
-        if recommendation is None:
-            raise ValueError("Daily brief references a missing recommendation.")
-        return DailyBrief(
-            id=row["id"],
-            farm_id=row["farm_id"],
-            generated_at=_datetime_from_text(row["generated_at"]),
-            summary=row["summary"],
-            recommendation=recommendation,
-            uncertainty_request=row["uncertainty_request"],
-            highlights=_json_loads(row["highlights"], []),
         )
 
     def _append_farm_reference(self, connection: sqlite3.Connection, farm_id: str, column: str, item_id: str) -> None:
@@ -998,8 +952,8 @@ class SQLiteStore:
                 """
                 INSERT INTO observations (
                     id, farm_id, source, observed_at, content, paddock_id, herd_id, metrics,
-                    media_url, media_thumbnail_url, media_metadata, tags
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    media_url, media_thumbnail_url, media_metadata, tags, provenance
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     observation.id,
@@ -1014,6 +968,7 @@ class SQLiteStore:
                     observation.media_thumbnail_url,
                     _json_dumps(observation.media_metadata),
                     _json_dumps(observation.tags),
+                    _json_dumps(observation.provenance),
                 ),
             )
         targets = [FarmActivityTarget(subject_type="farm", subject_id=observation.farm_id, relationship="farm")]
@@ -1041,6 +996,7 @@ class SQLiteStore:
                 "photo": "image_observation",
                 "trailcam": "image_observation",
                 "satellite": "imported_report",
+                "land_report": "imported_report",
             }.get(observation.source, "field_note"),
             source=observation.source,
             occurred_at=observation.observed_at,
@@ -1053,7 +1009,7 @@ class SQLiteStore:
             },
             targets=targets,
             attachments=attachments,
-            provenance={"source": "observation", "observation_id": observation.id},
+            provenance={"source": "observation", "observation_id": observation.id, **observation.provenance},
         )
         return observation.id
 
@@ -1345,112 +1301,354 @@ class SQLiteStore:
                 provenance={"source": "farmer_action", "action_id": action_id},
             )
 
-    def create_plan(self, plan: MovementDecision) -> str:
-        with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO movement_decisions (
-                    id, farm_id, herd_id, for_date, action, reasoning, confidence, source_paddock_id,
-                    target_paddock_id, knowledge_entry_ids, status, farmer_feedback, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    plan.id,
-                    plan.farm_id,
-                    plan.herd_id,
-                    _date_to_text(plan.for_date),
-                    plan.action,
-                    _json_dumps(plan.reasoning),
-                    plan.confidence,
-                    plan.source_paddock_id,
-                    plan.target_paddock_id,
-                    _json_dumps(plan.knowledge_entry_ids),
-                    plan.status,
-                    plan.farmer_feedback,
-                    _datetime_to_text(plan.created_at),
-                ),
+
+    # ------------------------------------------------------------------
+    # Schema for the decision record, land reports, and collar data.
+    # ------------------------------------------------------------------
+
+    def _table_names(self, connection: sqlite3.Connection) -> set[str]:
+        return {row["name"] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+
+    def _bootstrap_decision_tables(self, connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS grazing_decisions (
+                id TEXT PRIMARY KEY,
+                farm_id TEXT NOT NULL,
+                herd_id TEXT,
+                window_starts_at TEXT NOT NULL,
+                window_ends_at TEXT NOT NULL,
+                window_starts_utc TEXT NOT NULL,
+                action TEXT NOT NULL,
+                from_land_unit_id TEXT,
+                to_land_unit_id TEXT,
+                to_boundary TEXT,
+                reasoning TEXT NOT NULL,
+                confidence TEXT NOT NULL,
+                uncertainty_request TEXT,
+                inputs TEXT NOT NULL,
+                autonomy TEXT NOT NULL,
+                status TEXT NOT NULL,
+                farmer_response TEXT,
+                boundary_command_id TEXT,
+                outcome TEXT,
+                decided_by TEXT NOT NULL,
+                send_after TEXT,
+                boundary_options TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(farm_id) REFERENCES farms(id)
             )
-        targets = [FarmActivityTarget(subject_type="farm", subject_id=plan.farm_id, relationship="farm")]
-        if plan.herd_id:
-            targets.append(FarmActivityTarget(subject_type="herd", subject_id=plan.herd_id))
-        if plan.source_paddock_id:
-            targets.extend(self._target_for_land_unit(plan.source_paddock_id, relationship="source"))
-        if plan.target_paddock_id:
-            targets.extend(self._target_for_land_unit(plan.target_paddock_id, relationship="target"))
-        self._record_system_activity(
-            farm_id=plan.farm_id,
-            event_type="grazing_decision",
-            source="movement_plan",
-            occurred_at=plan.created_at,
-            title=f"Grazing decision: {plan.action}",
-            body="\n".join(plan.reasoning),
-            payload={
-                "plan_id": plan.id,
-                "action": plan.action,
-                "confidence": plan.confidence,
-                "for_date": _date_to_text(plan.for_date),
-                "source_paddock_id": plan.source_paddock_id,
-                "target_paddock_id": plan.target_paddock_id,
-                "status": plan.status,
-            },
-            targets=targets,
-            provenance={"source": "movement_decision", "plan_id": plan.id},
+            """
         )
-        return plan.id
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_grazing_decisions_herd_window "
+            "ON grazing_decisions(farm_id, herd_id, window_starts_utc)"
+        )
+        self._migrate_movement_decisions(connection)
 
-    def get_plan(self, plan_id: str) -> MovementDecision | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM movement_decisions WHERE id = ?",
-                (plan_id,),
-            ).fetchone()
-        return None if row is None else self._plan_from_row(row)
-
-    def get_latest_plan(self, farm_id: str) -> MovementDecision | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT * FROM movement_decisions
-                WHERE farm_id = ?
-                ORDER BY for_date DESC, created_at DESC
-                LIMIT 1
-                """,
-                (farm_id,),
-            ).fetchone()
-        return None if row is None else self._plan_from_row(row)
-
-    def update_plan_status(self, plan_id: str, status: str, feedback: str | None = None) -> None:
-        plan = self.get_plan(plan_id)
-        with self._connect() as connection:
+        tables = self._table_names(connection)
+        if "daily_briefs" in tables:
+            brief_columns = {row["name"] for row in connection.execute("PRAGMA table_info(daily_briefs)")}
+            if "recommendation_id" in brief_columns:
+                # Pre-decision-record briefs pointed at movement_decisions. Rebuild
+                # the table with decision_id; the ids carried over unchanged.
+                connection.execute("ALTER TABLE daily_briefs RENAME TO daily_briefs_legacy")
+                tables.discard("daily_briefs")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_briefs (
+                id TEXT PRIMARY KEY,
+                farm_id TEXT NOT NULL,
+                generated_at TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                decision_id TEXT NOT NULL,
+                uncertainty_request TEXT,
+                highlights TEXT NOT NULL,
+                FOREIGN KEY(farm_id) REFERENCES farms(id),
+                FOREIGN KEY(decision_id) REFERENCES grazing_decisions(id)
+            )
+            """
+        )
+        if "daily_briefs_legacy" in self._table_names(connection):
             connection.execute(
                 """
-                UPDATE movement_decisions
-                SET status = ?, farmer_feedback = COALESCE(?, farmer_feedback)
-                WHERE id = ?
+                INSERT OR IGNORE INTO daily_briefs (
+                    id, farm_id, generated_at, summary, decision_id, uncertainty_request, highlights
+                )
+                SELECT id, farm_id, generated_at, summary, recommendation_id, uncertainty_request, highlights
+                FROM daily_briefs_legacy
+                """
+            )
+            connection.execute("DROP TABLE daily_briefs_legacy")
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS decision_settings (
+                farm_id TEXT NOT NULL,
+                herd_id TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(farm_id, herd_id)
+            )
+            """
+        )
+
+    def _migrate_movement_decisions(self, connection: sqlite3.Connection) -> None:
+        """Copy pre-rename movement_decisions rows into grazing_decisions once.
+
+        The old table is renamed to movement_decisions_legacy rather than
+        dropped, so nothing is lost if a migration ever needs a second look.
+        """
+
+        if "movement_decisions" not in self._table_names(connection):
+            return
+        rows = connection.execute(
+            """
+            SELECT m.*, f.timezone AS farm_timezone
+            FROM movement_decisions m
+            LEFT JOIN farms f ON f.id = m.farm_id
+            """
+        ).fetchall()
+        for row in rows:
+            decision = _decision_from_legacy_row(row)
+            connection.execute(
+                f"INSERT OR IGNORE INTO grazing_decisions ({_DECISION_COLUMNS}) VALUES ({_DECISION_PLACEHOLDERS})",
+                _decision_values(decision),
+            )
+        connection.execute("ALTER TABLE movement_decisions RENAME TO movement_decisions_legacy")
+
+    def _bootstrap_land_and_collar_tables(self, connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS land_reports (
+                id TEXT PRIMARY KEY,
+                farm_id TEXT,
+                cache_key TEXT,
+                as_of_utc TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_land_reports_cache ON land_reports(cache_key, as_of_utc)")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS land_report_units (
+                report_id TEXT NOT NULL,
+                land_unit_id TEXT NOT NULL,
+                as_of_utc TEXT NOT NULL,
+                PRIMARY KEY(report_id, land_unit_id)
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_land_report_units_unit ON land_report_units(land_unit_id, as_of_utc)"
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS collars (
+                id TEXT PRIMARY KEY,
+                farm_id TEXT NOT NULL,
+                herd_id TEXT,
+                payload TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_collars_farm_herd ON collars(farm_id, herd_id)")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS boundary_commands (
+                id TEXT PRIMARY KEY,
+                farm_id TEXT NOT NULL,
+                herd_id TEXT NOT NULL,
+                decision_id TEXT,
+                version INTEGER NOT NULL,
+                final_version INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_boundary_commands_herd ON boundary_commands(herd_id, version)"
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS boundary_acks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                command_id TEXT NOT NULL,
+                collar_id TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                received_at TEXT NOT NULL,
+                reason TEXT
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_boundary_acks_command ON boundary_acks(command_id)")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS position_fixes (
+                collar_id TEXT NOT NULL,
+                at_utc TEXT NOT NULL,
+                farm_id TEXT,
+                herd_id TEXT,
+                at TEXT NOT NULL,
+                longitude REAL NOT NULL,
+                latitude REAL NOT NULL,
+                accuracy_meters REAL,
+                activity TEXT,
+                sats INTEGER,
+                land_unit_id TEXT,
+                boundary_version INTEGER,
+                PRIMARY KEY(collar_id, at_utc)
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_position_fixes_herd ON position_fixes(herd_id, at_utc)")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cue_events (
+                collar_id TEXT NOT NULL,
+                at_utc TEXT NOT NULL,
+                farm_id TEXT,
+                herd_id TEXT,
+                payload TEXT NOT NULL,
+                PRIMARY KEY(collar_id, at_utc)
+            )
+            """
+        )
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_cue_events_herd ON cue_events(herd_id, at_utc)")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS collar_summaries (
+                id TEXT PRIMARY KEY,
+                farm_id TEXT NOT NULL,
+                herd_id TEXT NOT NULL,
+                window_starts_utc TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_collar_summaries_herd ON collar_summaries(herd_id, window_starts_utc)"
+        )
+
+    # ------------------------------------------------------------------
+    # Decision record.
+    # ------------------------------------------------------------------
+
+    def _decision_targets(self, decision: GrazingDecision) -> list[FarmActivityTarget]:
+        targets = [FarmActivityTarget(subject_type="farm", subject_id=decision.farm_id, relationship="farm")]
+        if decision.herd_id:
+            targets.append(FarmActivityTarget(subject_type="herd", subject_id=decision.herd_id))
+        if decision.from_land_unit_id:
+            targets.extend(self._target_for_land_unit(decision.from_land_unit_id, relationship="source"))
+        target_unit = decision.land_unit_to_send()
+        if target_unit:
+            targets.extend(self._target_for_land_unit(target_unit, relationship="target"))
+        return targets
+
+    def create_decision(self, decision: GrazingDecision) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                f"INSERT INTO grazing_decisions ({_DECISION_COLUMNS}) VALUES ({_DECISION_PLACEHOLDERS})",
+                _decision_values(decision),
+            )
+        self._record_system_activity(
+            farm_id=decision.farm_id,
+            event_type="grazing_decision",
+            source="decision_engine",
+            occurred_at=decision.created_at,
+            title=f"Grazing decision: {decision.action}",
+            body="\n".join(decision.reasoning),
+            payload=_decision_activity_payload(decision),
+            targets=self._decision_targets(decision),
+            provenance={"source": "grazing_decision", "decision_id": decision.decision_id},
+        )
+        return decision.decision_id
+
+    def update_decision(self, decision: GrazingDecision, *, event: str | None = None) -> None:
+        decision.updated_at = utc_now()
+        assignments = ", ".join(
+            f"{column} = excluded.{column}" for column in _DECISION_COLUMN_LIST if column != "id"
+        )
+        with self._connect() as connection:
+            connection.execute(
+                f"""
+                INSERT INTO grazing_decisions ({_DECISION_COLUMNS}) VALUES ({_DECISION_PLACEHOLDERS})
+                ON CONFLICT(id) DO UPDATE SET {assignments}
                 """,
-                (status, feedback, plan_id),
+                _decision_values(decision),
             )
-        if plan is not None:
-            targets = [FarmActivityTarget(subject_type="farm", subject_id=plan.farm_id, relationship="farm")]
-            if plan.herd_id:
-                targets.append(FarmActivityTarget(subject_type="herd", subject_id=plan.herd_id))
+        if event:
+            note = decision.farmer_response.note if decision.farmer_response else None
             self._record_system_activity(
-                farm_id=plan.farm_id,
+                farm_id=decision.farm_id,
                 event_type="grazing_decision_status",
-                source="movement_plan",
-                title=f"Grazing decision {status}",
-                body=feedback or "",
-                payload={"plan_id": plan_id, "status": status, "feedback": feedback},
-                targets=targets,
-                provenance={"source": "movement_decision", "plan_id": plan_id},
+                source="decision_engine",
+                title=f"Grazing decision {event}",
+                body=note or "",
+                payload={**_decision_activity_payload(decision), "event": event},
+                targets=self._decision_targets(decision),
+                provenance={"source": "grazing_decision", "decision_id": decision.decision_id},
             )
+
+    def get_decision(self, decision_id: str) -> GrazingDecision | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM grazing_decisions WHERE id = ?", (decision_id,)).fetchone()
+        return None if row is None else _decision_from_row(row)
+
+    def get_latest_decision(self, farm_id: str, herd_id: str | None = None) -> GrazingDecision | None:
+        decisions = self.list_decisions(farm_id, herd_id=herd_id, limit=1)
+        return decisions[0] if decisions else None
+
+    def list_decisions(
+        self,
+        farm_id: str,
+        *,
+        herd_id: str | None = None,
+        status: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 50,
+    ) -> list[GrazingDecision]:
+        clauses = ["farm_id = ?"]
+        values: list[object] = [farm_id]
+        if herd_id is not None:
+            clauses.append("herd_id = ?")
+            values.append(herd_id)
+        if status is not None:
+            clauses.append("status = ?")
+            values.append(status)
+        if since is not None:
+            clauses.append("window_starts_utc >= ?")
+            values.append(utc_text(since))
+        if until is not None:
+            clauses.append("window_starts_utc < ?")
+            values.append(utc_text(until))
+        values.append(limit)
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM grazing_decisions
+                WHERE {' AND '.join(clauses)}
+                ORDER BY window_starts_utc DESC, created_at DESC
+                LIMIT ?
+                """,
+                tuple(values),
+            ).fetchall()
+        return [_decision_from_row(row) for row in rows]
 
     def save_daily_brief(self, brief: DailyBrief) -> str:
         with self._connect() as connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO daily_briefs (
-                    id, farm_id, generated_at, summary, recommendation_id, uncertainty_request, highlights
+                    id, farm_id, generated_at, summary, decision_id, uncertainty_request, highlights
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -1458,14 +1656,14 @@ class SQLiteStore:
                     brief.farm_id,
                     _datetime_to_text(brief.generated_at),
                     brief.summary,
-                    brief.recommendation.id,
+                    brief.decision.decision_id,
                     brief.uncertainty_request,
                     _json_dumps(brief.highlights),
                 ),
             )
         targets = [FarmActivityTarget(subject_type="farm", subject_id=brief.farm_id, relationship="farm")]
-        if brief.recommendation.herd_id:
-            targets.append(FarmActivityTarget(subject_type="herd", subject_id=brief.recommendation.herd_id))
+        if brief.decision.herd_id:
+            targets.append(FarmActivityTarget(subject_type="herd", subject_id=brief.decision.herd_id))
         self._record_system_activity(
             farm_id=brief.farm_id,
             event_type="daily_brief",
@@ -1475,7 +1673,7 @@ class SQLiteStore:
             body=brief.summary,
             payload={
                 "brief_id": brief.id,
-                "recommendation_id": brief.recommendation.id,
+                "decision_id": brief.decision.decision_id,
                 "uncertainty_request": brief.uncertainty_request,
                 "highlights": brief.highlights,
             },
@@ -1486,8 +1684,528 @@ class SQLiteStore:
 
     def get_daily_brief(self, brief_id: str) -> DailyBrief | None:
         with self._connect() as connection:
+            row = connection.execute("SELECT * FROM daily_briefs WHERE id = ?", (brief_id,)).fetchone()
+        if row is None:
+            return None
+        decision = self.get_decision(row["decision_id"])
+        if decision is None:
+            raise ValueError("Daily brief references a missing decision.")
+        return DailyBrief(
+            id=row["id"],
+            farm_id=row["farm_id"],
+            generated_at=_datetime_from_text(row["generated_at"]),
+            summary=row["summary"],
+            decision=decision,
+            uncertainty_request=row["uncertainty_request"],
+            highlights=_json_loads(row["highlights"], []),
+        )
+
+    def get_decision_settings(self, farm_id: str, herd_id: str | None = None) -> DecisionSettings | None:
+        with self._connect() as connection:
             row = connection.execute(
-                "SELECT * FROM daily_briefs WHERE id = ?",
-                (brief_id,),
+                "SELECT payload FROM decision_settings WHERE farm_id = ? AND herd_id = ?",
+                (farm_id, herd_id or ""),
             ).fetchone()
-        return None if row is None else self._daily_brief_from_row(row)
+        return None if row is None else DecisionSettings.from_dict(json.loads(row["payload"]))
+
+    def save_decision_settings(self, settings: DecisionSettings) -> None:
+        settings.updated_at = utc_now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO decision_settings (farm_id, herd_id, payload, updated_at) VALUES (?, ?, ?, ?)
+                ON CONFLICT(farm_id, herd_id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
+                """,
+                (settings.farm_id, settings.herd_id or "", _json_dumps(settings.to_dict()), utc_text(settings.updated_at)),
+            )
+        targets = [FarmActivityTarget(subject_type="farm", subject_id=settings.farm_id, relationship="farm")]
+        if settings.herd_id:
+            targets.append(FarmActivityTarget(subject_type="herd", subject_id=settings.herd_id))
+        self._record_system_activity(
+            farm_id=settings.farm_id,
+            event_type="decision_settings",
+            source="farmer",
+            title=f"Autonomy set to {settings.autonomy or 'inherited'}",
+            payload=settings.to_dict(),
+            targets=targets,
+            provenance={"source": "decision_settings"},
+        )
+
+    # ------------------------------------------------------------------
+    # Land reports.
+    # ------------------------------------------------------------------
+
+    def save_land_report(self, report: LandReport) -> str:
+        as_of_utc = utc_text(report.as_of)
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO land_reports (id, farm_id, cache_key, as_of_utc, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    report.report_id,
+                    report.farm_id,
+                    report.cache_key,
+                    as_of_utc,
+                    _json_dumps(report.to_dict()),
+                    utc_text(report.created_at),
+                ),
+            )
+            for land_unit_id in report.land_unit_ids:
+                connection.execute(
+                    "INSERT OR IGNORE INTO land_report_units (report_id, land_unit_id, as_of_utc) VALUES (?, ?, ?)",
+                    (report.report_id, land_unit_id, as_of_utc),
+                )
+        return report.report_id
+
+    def get_land_report(self, report_id: str) -> LandReport | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM land_reports WHERE id = ?", (report_id,)).fetchone()
+        return None if row is None else LandReport.from_dict(json.loads(row["payload"]))
+
+    def find_land_report(self, cache_key: str, as_of_start: datetime, as_of_end: datetime) -> LandReport | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload FROM land_reports
+                WHERE cache_key = ? AND as_of_utc >= ? AND as_of_utc <= ?
+                ORDER BY as_of_utc DESC
+                LIMIT 1
+                """,
+                (cache_key, utc_text(as_of_start), utc_text(as_of_end)),
+            ).fetchone()
+        return None if row is None else LandReport.from_dict(json.loads(row["payload"]))
+
+    def list_land_reports(
+        self, farm_id: str, *, land_unit_id: str | None = None, limit: int = 20
+    ) -> list[LandReport]:
+        with self._connect() as connection:
+            if land_unit_id is None:
+                rows = connection.execute(
+                    "SELECT payload FROM land_reports WHERE farm_id = ? ORDER BY as_of_utc DESC LIMIT ?",
+                    (farm_id, limit),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT r.payload FROM land_report_units u
+                    JOIN land_reports r ON r.id = u.report_id
+                    WHERE u.land_unit_id = ? AND r.farm_id = ?
+                    ORDER BY u.as_of_utc DESC
+                    LIMIT ?
+                    """,
+                    (land_unit_id, farm_id, limit),
+                ).fetchall()
+        return [LandReport.from_dict(json.loads(row["payload"])) for row in rows]
+
+    # ------------------------------------------------------------------
+    # Collars, boundaries, and position data.
+    # ------------------------------------------------------------------
+
+    def upsert_collar(self, collar: Collar) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO collars (id, farm_id, herd_id, payload) VALUES (?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    farm_id = excluded.farm_id, herd_id = excluded.herd_id, payload = excluded.payload
+                """,
+                (collar.collar_id, collar.farm_id, collar.herd_id, _json_dumps(collar.to_dict())),
+            )
+        return collar.collar_id
+
+    def get_collar(self, collar_id: str) -> Collar | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM collars WHERE id = ?", (collar_id,)).fetchone()
+        return None if row is None else Collar.from_dict(json.loads(row["payload"]))
+
+    def list_collars(self, farm_id: str, herd_id: str | None = None) -> list[Collar]:
+        with self._connect() as connection:
+            if herd_id is None:
+                rows = connection.execute(
+                    "SELECT payload FROM collars WHERE farm_id = ? ORDER BY id ASC", (farm_id,)
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT payload FROM collars WHERE farm_id = ? AND herd_id = ? ORDER BY id ASC",
+                    (farm_id, herd_id),
+                ).fetchall()
+        return [Collar.from_dict(json.loads(row["payload"])) for row in rows]
+
+    def save_boundary_command(self, command: BoundaryCommand) -> str:
+        with self._connect() as connection:
+            existing = connection.execute(
+                "SELECT status FROM boundary_commands WHERE id = ?", (command.command_id,)
+            ).fetchone()
+            connection.execute(
+                """
+                INSERT INTO boundary_commands (
+                    id, farm_id, herd_id, decision_id, version, final_version, status, payload, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    status = excluded.status, final_version = excluded.final_version, payload = excluded.payload
+                """,
+                (
+                    command.command_id,
+                    command.farm_id,
+                    command.herd_id,
+                    command.decision_id,
+                    command.version,
+                    int(command.final_version or command.version),
+                    command.status,
+                    _json_dumps(command.to_dict()),
+                    utc_text(command.created_at),
+                ),
+            )
+        if existing is None or existing["status"] != command.status:
+            targets = [
+                FarmActivityTarget(subject_type="farm", subject_id=command.farm_id, relationship="farm"),
+                FarmActivityTarget(subject_type="herd", subject_id=command.herd_id),
+            ]
+            if command.land_unit_id:
+                targets.extend(self._target_for_land_unit(command.land_unit_id, relationship="target"))
+            self._record_system_activity(
+                farm_id=command.farm_id,
+                event_type="boundary_command",
+                source="collar_gateway",
+                title=f"Boundary v{command.version} {command.status}",
+                body=command.error or "",
+                payload={
+                    "command_id": command.command_id,
+                    "decision_id": command.decision_id,
+                    "version": command.version,
+                    "status": command.status,
+                    "collar_ids": command.collar_ids,
+                },
+                targets=targets,
+                provenance={"source": "boundary_command", "command_id": command.command_id},
+            )
+        return command.command_id
+
+    def get_boundary_command(self, command_id: str) -> BoundaryCommand | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM boundary_commands WHERE id = ?", (command_id,)).fetchone()
+        return None if row is None else BoundaryCommand.from_dict(json.loads(row["payload"]))
+
+    def list_boundary_commands(self, herd_id: str, limit: int = 20) -> list[BoundaryCommand]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT payload FROM boundary_commands WHERE herd_id = ? ORDER BY version DESC LIMIT ?",
+                (herd_id, limit),
+            ).fetchall()
+        return [BoundaryCommand.from_dict(json.loads(row["payload"])) for row in rows]
+
+    def record_boundary_ack(self, ack: BoundaryAck) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO boundary_acks (command_id, collar_id, version, status, received_at, reason)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (ack.command_id, ack.collar_id, ack.version, ack.status, ack.received_at.isoformat(), ack.reason),
+            )
+
+    def list_boundary_acks(self, command_id: str) -> list[BoundaryAck]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM boundary_acks WHERE command_id = ? ORDER BY id ASC", (command_id,)
+            ).fetchall()
+        return [
+            BoundaryAck(
+                command_id=row["command_id"],
+                collar_id=row["collar_id"],
+                version=row["version"],
+                status=row["status"],
+                received_at=_datetime_from_text(row["received_at"]),
+                reason=row["reason"],
+            )
+            for row in rows
+        ]
+
+    def record_position_fixes(self, fixes: list[PositionFix]) -> int:
+        inserted = 0
+        with self._connect() as connection:
+            for fix in fixes:
+                cursor = connection.execute(
+                    """
+                    INSERT OR IGNORE INTO position_fixes (
+                        collar_id, at_utc, farm_id, herd_id, at, longitude, latitude,
+                        accuracy_meters, activity, sats, land_unit_id, boundary_version
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        fix.collar_id,
+                        utc_text(fix.at),
+                        fix.farm_id,
+                        fix.herd_id,
+                        fix.at.isoformat(),
+                        float(fix.point[0]),
+                        float(fix.point[1]),
+                        fix.accuracy_meters,
+                        fix.activity,
+                        fix.sats,
+                        fix.land_unit_id,
+                        fix.boundary_version,
+                    ),
+                )
+                inserted += cursor.rowcount
+        return inserted
+
+    def list_position_fixes(
+        self, herd_id: str, since: datetime, until: datetime | None = None
+    ) -> list[PositionFix]:
+        values: list[object] = [herd_id, utc_text(since)]
+        until_clause = ""
+        if until is not None:
+            until_clause = "AND at_utc < ?"
+            values.append(utc_text(until))
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"""
+                SELECT * FROM position_fixes
+                WHERE herd_id = ? AND at_utc >= ? {until_clause}
+                ORDER BY at_utc ASC
+                """,
+                tuple(values),
+            ).fetchall()
+        return [
+            PositionFix(
+                collar_id=row["collar_id"],
+                at=_datetime_from_text(row["at"]),
+                point=[row["longitude"], row["latitude"]],
+                accuracy_meters=row["accuracy_meters"],
+                activity=row["activity"],
+                sats=row["sats"],
+                farm_id=row["farm_id"],
+                herd_id=row["herd_id"],
+                land_unit_id=row["land_unit_id"],
+                boundary_version=row["boundary_version"],
+            )
+            for row in rows
+        ]
+
+    def prune_position_fixes(self, before: datetime) -> int:
+        with self._connect() as connection:
+            fixes = connection.execute("DELETE FROM position_fixes WHERE at_utc < ?", (utc_text(before),)).rowcount
+            cues = connection.execute("DELETE FROM cue_events WHERE at_utc < ?", (utc_text(before),)).rowcount
+        return fixes + cues
+
+    def record_cue_events(self, cues: list[CueEvent]) -> int:
+        inserted = 0
+        with self._connect() as connection:
+            for cue in cues:
+                cursor = connection.execute(
+                    """
+                    INSERT OR IGNORE INTO cue_events (collar_id, at_utc, farm_id, herd_id, payload)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (cue.collar_id, utc_text(cue.at), cue.farm_id, cue.herd_id, _json_dumps(cue.to_dict())),
+                )
+                inserted += cursor.rowcount
+        return inserted
+
+    def list_cue_events(self, herd_id: str, since: datetime, until: datetime | None = None) -> list[CueEvent]:
+        values: list[object] = [herd_id, utc_text(since)]
+        until_clause = ""
+        if until is not None:
+            until_clause = "AND at_utc < ?"
+            values.append(utc_text(until))
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"SELECT payload FROM cue_events WHERE herd_id = ? AND at_utc >= ? {until_clause} ORDER BY at_utc ASC",
+                tuple(values),
+            ).fetchall()
+        return [_cue_from_dict(json.loads(row["payload"])) for row in rows]
+
+    def save_collar_summary(self, summary: CollarSummary) -> str:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO collar_summaries (id, farm_id, herd_id, window_starts_utc, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    summary.summary_id,
+                    summary.farm_id,
+                    summary.herd_id,
+                    utc_text(summary.window_starts_at),
+                    _json_dumps(summary.to_dict()),
+                    utc_text(summary.created_at),
+                ),
+            )
+        return summary.summary_id
+
+    def get_collar_summary(self, summary_id: str) -> CollarSummary | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT payload FROM collar_summaries WHERE id = ?", (summary_id,)).fetchone()
+        return None if row is None else CollarSummary.from_dict(json.loads(row["payload"]))
+
+    def list_collar_summaries(self, herd_id: str, limit: int = 20) -> list[CollarSummary]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT payload FROM collar_summaries WHERE herd_id = ?
+                ORDER BY window_starts_utc DESC, created_at DESC LIMIT ?
+                """,
+                (herd_id, limit),
+            ).fetchall()
+        return [CollarSummary.from_dict(json.loads(row["payload"])) for row in rows]
+
+
+_DECISION_COLUMN_LIST = (
+    "id",
+    "farm_id",
+    "herd_id",
+    "window_starts_at",
+    "window_ends_at",
+    "window_starts_utc",
+    "action",
+    "from_land_unit_id",
+    "to_land_unit_id",
+    "to_boundary",
+    "reasoning",
+    "confidence",
+    "uncertainty_request",
+    "inputs",
+    "autonomy",
+    "status",
+    "farmer_response",
+    "boundary_command_id",
+    "outcome",
+    "decided_by",
+    "send_after",
+    "boundary_options",
+    "created_at",
+    "updated_at",
+)
+_DECISION_COLUMNS = ", ".join(_DECISION_COLUMN_LIST)
+_DECISION_PLACEHOLDERS = ", ".join("?" for _ in _DECISION_COLUMN_LIST)
+
+
+def _decision_values(decision: GrazingDecision) -> tuple[object, ...]:
+    return (
+        decision.decision_id,
+        decision.farm_id,
+        decision.herd_id,
+        decision.window.starts_at.isoformat(),
+        decision.window.ends_at.isoformat(),
+        utc_text(decision.window.starts_at),
+        decision.action,
+        decision.from_land_unit_id,
+        decision.to_land_unit_id,
+        _json_dumps(decision.to_boundary) if decision.to_boundary else None,
+        _json_dumps(decision.reasoning),
+        decision.confidence,
+        decision.uncertainty_request,
+        _json_dumps(decision.inputs.to_dict()),
+        decision.autonomy,
+        decision.status,
+        _json_dumps(decision.farmer_response.to_dict()) if decision.farmer_response else None,
+        decision.boundary_command_id,
+        _json_dumps(decision.outcome.to_dict()) if decision.outcome else None,
+        decision.decided_by,
+        decision.send_after.isoformat() if decision.send_after else None,
+        _json_dumps(decision.boundary_options),
+        decision.created_at.isoformat(),
+        decision.updated_at.isoformat(),
+    )
+
+
+def _decision_from_row(row: sqlite3.Row) -> GrazingDecision:
+    return GrazingDecision(
+        decision_id=row["id"],
+        farm_id=row["farm_id"],
+        herd_id=row["herd_id"],
+        window=DecisionWindow(
+            starts_at=_datetime_from_text(row["window_starts_at"]),
+            ends_at=_datetime_from_text(row["window_ends_at"]),
+        ),
+        action=row["action"],
+        from_land_unit_id=row["from_land_unit_id"],
+        to_land_unit_id=row["to_land_unit_id"],
+        to_boundary=_json_loads(row["to_boundary"], None),
+        reasoning=_json_loads(row["reasoning"], []),
+        confidence=row["confidence"],
+        uncertainty_request=row["uncertainty_request"],
+        inputs=DecisionInputs.from_dict(_json_loads(row["inputs"], {})),
+        autonomy=row["autonomy"],
+        status=row["status"],
+        farmer_response=FarmerResponse.from_dict(_json_loads(row["farmer_response"], None)),
+        boundary_command_id=row["boundary_command_id"],
+        outcome=DecisionOutcome.from_dict(_json_loads(row["outcome"], None)),
+        decided_by=row["decided_by"],
+        send_after=parse_datetime(row["send_after"]),
+        boundary_options=_json_loads(row["boundary_options"], {}),
+        created_at=_datetime_from_text(row["created_at"]),
+        updated_at=_datetime_from_text(row["updated_at"]),
+    )
+
+
+_LEGACY_STATUS = {"pending": "proposed", "approved": "approved", "rejected": "rejected", "modified": "modified"}
+
+
+def _decision_from_legacy_row(row: sqlite3.Row) -> GrazingDecision:
+    """Map a pre-rename movement_decisions row onto the decision record."""
+
+    try:
+        zone = ZoneInfo(row["farm_timezone"] or "UTC")
+    except Exception:
+        zone = ZoneInfo("UTC")
+    for_date = _date_from_text(row["for_date"])
+    starts_at = datetime.combine(for_date, time(0, 0), tzinfo=zone)
+    created_at = as_utc(_datetime_from_text(row["created_at"]))
+    status = _LEGACY_STATUS.get(row["status"], "proposed")
+    reasoning = _json_loads(row["reasoning"], [])
+    farmer_response = None
+    if status in {"approved", "rejected", "modified"}:
+        farmer_response = FarmerResponse(at=created_at, response=status, note=row["farmer_feedback"])
+    elif row["farmer_feedback"]:
+        reasoning.append(f"Farmer note: {row['farmer_feedback']}")
+    action = row["action"] if row["action"] in {"MOVE", "STAY", "NEEDS_INFO"} else "NEEDS_INFO"
+    confidence = row["confidence"] if row["confidence"] in {"high", "medium", "low"} else "medium"
+    return GrazingDecision(
+        decision_id=row["id"],
+        farm_id=row["farm_id"],
+        herd_id=row["herd_id"],
+        window=DecisionWindow(starts_at=starts_at, ends_at=starts_at + timedelta(days=1)),
+        action=action,
+        from_land_unit_id=row["source_paddock_id"],
+        to_land_unit_id=row["target_paddock_id"],
+        reasoning=reasoning,
+        confidence=confidence,
+        inputs=DecisionInputs(knowledge_entry_ids=_json_loads(row["knowledge_entry_ids"], [])),
+        autonomy="propose",
+        status=status,
+        farmer_response=farmer_response,
+        decided_by="legacy",
+        created_at=created_at,
+        updated_at=created_at,
+    )
+
+
+def _decision_activity_payload(decision: GrazingDecision) -> dict[str, object]:
+    return {
+        "decision_id": decision.decision_id,
+        "action": decision.action,
+        "confidence": decision.confidence,
+        "status": decision.status,
+        "autonomy": decision.autonomy,
+        "window": decision.window.to_dict(),
+        "from_land_unit_id": decision.from_land_unit_id,
+        "to_land_unit_id": decision.land_unit_to_send(),
+        "boundary_command_id": decision.boundary_command_id,
+    }
+
+
+def _cue_from_dict(data: dict[str, Any]) -> CueEvent:
+    return CueEvent(
+        collar_id=str(data["collar_id"]),
+        at=parse_datetime(data.get("at")) or utc_now(),
+        type=str(data.get("type") or "audio"),
+        point=data.get("point"),
+        level=data.get("level"),
+        margin_meters=data.get("margin_meters"),
+        farm_id=data.get("farm_id"),
+        herd_id=data.get("herd_id"),
+    )

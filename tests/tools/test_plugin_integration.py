@@ -134,7 +134,7 @@ def test_registered_handlers_accept_hermes_kwargs(monkeypatch):
             task_id="task_brief",
         )
     )
-    assert brief_result["brief"]["recommendation"]["action"] == "MOVE"
+    assert brief_result["brief"]["decision"]["action"] == "MOVE"
 
     search_result = json.loads(
         ctx.tools["search_knowledge"](

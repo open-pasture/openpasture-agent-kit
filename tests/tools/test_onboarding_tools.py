@@ -81,7 +81,7 @@ def test_record_observation_normalizes_field_aliases(monkeypatch):
     assert observations[0].source == "field"
 
     brief_result = json.loads(handle_generate_morning_brief({"farm_id": farm_id}))
-    assert brief_result["brief"]["recommendation"]["action"] == "MOVE"
+    assert brief_result["brief"]["decision"]["action"] == "MOVE"
 
 
 def test_register_farm_blocks_second_farm_without_explicit_override():
@@ -327,7 +327,7 @@ def test_daily_tools_fall_back_to_single_farm_context_and_aliases(monkeypatch):
     assert state["farm"]["id"] == farm_id
 
     brief_result = json.loads(handle_generate_morning_brief({}))
-    assert brief_result["brief"]["recommendation"]["action"] == "MOVE"
+    assert brief_result["brief"]["decision"]["action"] == "MOVE"
 
 
 def test_missing_farm_id_stays_ambiguous_with_multiple_farms():

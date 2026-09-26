@@ -126,6 +126,7 @@ const observationRecord = v.object({
   mediaThumbnailUrl: v.optional(v.string()),
   mediaMetadata: v.optional(v.any()),
   tags: v.array(v.string()),
+  provenance: v.optional(v.any()),
 });
 
 const activityTargetRecord = v.object({
@@ -203,22 +204,6 @@ const farmerActionRecord = v.object({
   createdAt: v.string(),
   resolvedAt: v.optional(v.string()),
   resolution: v.optional(v.string()),
-});
-
-const planRecord = v.object({
-  planId: v.string(),
-  farmId: v.string(),
-  herdId: v.optional(v.string()),
-  forDate: v.string(),
-  action: v.string(),
-  reasoning: v.array(v.string()),
-  confidence: v.string(),
-  sourcePaddockId: v.optional(v.string()),
-  targetPaddockId: v.optional(v.string()),
-  knowledgeEntryIds: v.array(v.string()),
-  status: v.string(),
-  farmerFeedback: v.optional(v.string()),
-  createdAt: v.string(),
 });
 
 const briefRecord = v.object({
@@ -613,6 +598,7 @@ export const recordObservation = mutation({
         photo: "image_observation",
         trailcam: "image_observation",
         satellite: "imported_report",
+        land_report: "imported_report",
       }[args.record.source] ?? "field_note",
       source: args.record.source,
       occurredAt: args.record.observedAt,
@@ -620,7 +606,7 @@ export const recordObservation = mutation({
       title: args.record.content.slice(0, 80) || "Observation recorded",
       body: args.record.content,
       payload: { observation_id: args.record.observationId, metrics: args.record.metrics, tags: args.record.tags },
-      provenance: { source: "observation", observation_id: args.record.observationId },
+      provenance: { source: "observation", observation_id: args.record.observationId, ...(args.record.provenance ?? {}) },
       visibility: "farm",
       targets: [
         { subjectType: "farm", subjectId: args.record.farmId, relationship: "farm" },
@@ -824,95 +810,6 @@ export const resolveFarmerAction = mutation({
   },
 });
 
-export const createPlan = mutation({
-  args: { tenantKey: v.string(), record: planRecord },
-  handler: async (ctx, args) => {
-    await ctx.db.insert("movementDecisions", { tenantKey: args.tenantKey, ...args.record });
-    await insertActivityRows(ctx, args.tenantKey, {
-      activityId: uniqueActivityId("activity_grazing_decision"),
-      farmId: args.record.farmId,
-      eventType: "grazing_decision",
-      source: "movement_plan",
-      occurredAt: args.record.createdAt,
-      recordedAt: new Date().toISOString(),
-      title: `Grazing decision: ${args.record.action}`,
-      body: args.record.reasoning.join("\n"),
-      payload: {
-        plan_id: args.record.planId,
-        action: args.record.action,
-        confidence: args.record.confidence,
-        for_date: args.record.forDate,
-        source_paddock_id: args.record.sourcePaddockId,
-        target_paddock_id: args.record.targetPaddockId,
-        status: args.record.status,
-      },
-      provenance: { source: "movement_decision", plan_id: args.record.planId },
-      visibility: "farm",
-      targets: [
-        { subjectType: "farm", subjectId: args.record.farmId, relationship: "farm" },
-        ...(args.record.herdId ? [{ subjectType: "herd", subjectId: args.record.herdId, relationship: "primary" }] : []),
-        ...(args.record.sourcePaddockId ? await targetsForPaddock(ctx, args.tenantKey, args.record.sourcePaddockId, "source") : []),
-        ...(args.record.targetPaddockId ? await targetsForPaddock(ctx, args.tenantKey, args.record.targetPaddockId, "target") : []),
-      ],
-      attachments: [],
-    });
-    return args.record.planId;
-  },
-});
-
-export const getPlan = query({
-  args: { tenantKey: v.string(), planId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("movementDecisions")
-      .withIndex("by_tenant_key_and_plan_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("planId", args.planId))
-      .unique();
-  },
-});
-
-export const getLatestPlan = query({
-  args: { tenantKey: v.string(), farmId: v.string() },
-  handler: async (ctx, args) => {
-    const plans = await ctx.db
-      .query("movementDecisions")
-      .withIndex("by_tenant_key_farm_and_for_date", (q: any) => q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId))
-      .take(500);
-    return plans.sort((left, right) => right.forDate.localeCompare(left.forDate) || right.createdAt.localeCompare(left.createdAt))[0] ?? null;
-  },
-});
-
-export const updatePlanStatus = mutation({
-  args: { tenantKey: v.string(), planId: v.string(), status: v.string(), farmerFeedback: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const plan = await ctx.db
-      .query("movementDecisions")
-      .withIndex("by_tenant_key_and_plan_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("planId", args.planId))
-      .unique();
-    if (!plan) throw new Error(`Movement decision '${args.planId}' does not exist.`);
-    await ctx.db.patch(plan._id, cleanPatch({ status: args.status, farmerFeedback: args.farmerFeedback }));
-    const now = new Date().toISOString();
-    await insertActivityRows(ctx, args.tenantKey, {
-      activityId: uniqueActivityId("activity_grazing_decision_status"),
-      farmId: plan.farmId,
-      eventType: "grazing_decision_status",
-      source: "movement_plan",
-      occurredAt: now,
-      recordedAt: now,
-      title: `Grazing decision ${args.status}`,
-      body: args.farmerFeedback ?? "",
-      payload: { plan_id: args.planId, status: args.status, feedback: args.farmerFeedback },
-      provenance: { source: "movement_decision", plan_id: args.planId },
-      visibility: "farm",
-      targets: [
-        { subjectType: "farm", subjectId: plan.farmId, relationship: "farm" },
-        ...(plan.herdId ? [{ subjectType: "herd", subjectId: plan.herdId, relationship: "primary" }] : []),
-      ],
-      attachments: [],
-    });
-    return true;
-  },
-});
-
 export const saveDailyBrief = mutation({
   args: { tenantKey: v.string(), record: briefRecord },
   handler: async (ctx, args) => {
@@ -925,9 +822,11 @@ export const saveDailyBrief = mutation({
     } else {
       await ctx.db.insert("dailyBriefs", { tenantKey: args.tenantKey, ...args.record });
     }
-    const plan = await ctx.db
-      .query("movementDecisions")
-      .withIndex("by_tenant_key_and_plan_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("planId", args.record.recommendationId))
+    const decision = await ctx.db
+      .query("grazingDecisions")
+      .withIndex("by_tenant_key_and_decision_id", (q: any) =>
+        q.eq("tenantKey", args.tenantKey).eq("decisionId", args.record.recommendationId),
+      )
       .unique();
     await insertActivityRows(ctx, args.tenantKey, {
       activityId: uniqueActivityId("activity_daily_brief"),
@@ -940,7 +839,7 @@ export const saveDailyBrief = mutation({
       body: args.record.summary,
       payload: {
         brief_id: args.record.briefId,
-        recommendation_id: args.record.recommendationId,
+        decision_id: args.record.recommendationId,
         uncertainty_request: args.record.uncertaintyRequest,
         highlights: args.record.highlights,
       },
@@ -948,7 +847,7 @@ export const saveDailyBrief = mutation({
       visibility: "farm",
       targets: [
         { subjectType: "farm", subjectId: args.record.farmId, relationship: "farm" },
-        ...(plan?.herdId ? [{ subjectType: "herd", subjectId: plan.herdId, relationship: "primary" }] : []),
+        ...(decision?.herdId ? [{ subjectType: "herd", subjectId: decision.herdId, relationship: "primary" }] : []),
       ],
       attachments: [],
     });
@@ -963,5 +862,539 @@ export const getDailyBrief = query({
       .query("dailyBriefs")
       .withIndex("by_tenant_key_and_brief_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("briefId", args.briefId))
       .unique();
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Decision record
+// ---------------------------------------------------------------------------
+
+const decisionRecord = v.object({
+  decisionId: v.string(),
+  farmId: v.string(),
+  herdId: v.optional(v.string()),
+  windowStartsUtc: v.string(),
+  status: v.string(),
+  createdAt: v.string(),
+  payload: v.any(),
+});
+
+async function decisionTargets(ctx: any, tenantKey: string, payload: any) {
+  const targets: any[] = [{ subjectType: "farm", subjectId: payload.farm_id, relationship: "farm" }];
+  if (payload.herd_id) targets.push({ subjectType: "herd", subjectId: payload.herd_id, relationship: "primary" });
+  if (payload.from_land_unit_id) targets.push(...(await targetsForPaddock(ctx, tenantKey, payload.from_land_unit_id, "source")));
+  const target = payload.farmer_response?.land_unit_id ?? payload.to_land_unit_id;
+  if (target) targets.push(...(await targetsForPaddock(ctx, tenantKey, target, "target")));
+  return targets;
+}
+
+function decisionActivityPayload(payload: any) {
+  return {
+    decision_id: payload.decision_id,
+    action: payload.action,
+    confidence: payload.confidence,
+    status: payload.status,
+    autonomy: payload.autonomy,
+    window: payload.window,
+    from_land_unit_id: payload.from_land_unit_id,
+    to_land_unit_id: payload.farmer_response?.land_unit_id ?? payload.to_land_unit_id,
+    boundary_command_id: payload.boundary_command_id,
+  };
+}
+
+async function findDecision(ctx: any, tenantKey: string, decisionId: string) {
+  return await ctx.db
+    .query("grazingDecisions")
+    .withIndex("by_tenant_key_and_decision_id", (q: any) => q.eq("tenantKey", tenantKey).eq("decisionId", decisionId))
+    .unique();
+}
+
+export const createDecision = mutation({
+  args: { tenantKey: v.string(), record: decisionRecord },
+  handler: async (ctx, args) => {
+    if (await findDecision(ctx, args.tenantKey, args.record.decisionId)) {
+      throw new Error(`Decision '${args.record.decisionId}' already exists.`);
+    }
+    await ctx.db.insert("grazingDecisions", { tenantKey: args.tenantKey, ...args.record });
+    const payload = args.record.payload;
+    await insertActivityRows(ctx, args.tenantKey, {
+      activityId: uniqueActivityId("activity_grazing_decision"),
+      farmId: args.record.farmId,
+      eventType: "grazing_decision",
+      source: "decision_engine",
+      occurredAt: args.record.createdAt,
+      recordedAt: new Date().toISOString(),
+      title: `Grazing decision: ${payload.action}`,
+      body: (payload.reasoning ?? []).join("\n"),
+      payload: decisionActivityPayload(payload),
+      provenance: { source: "grazing_decision", decision_id: args.record.decisionId },
+      visibility: "farm",
+      targets: await decisionTargets(ctx, args.tenantKey, payload),
+      attachments: [],
+    });
+    return args.record.decisionId;
+  },
+});
+
+export const updateDecision = mutation({
+  args: { tenantKey: v.string(), record: decisionRecord, event: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const existing = await findDecision(ctx, args.tenantKey, args.record.decisionId);
+    if (existing) {
+      await ctx.db.patch(existing._id, args.record);
+    } else {
+      await ctx.db.insert("grazingDecisions", { tenantKey: args.tenantKey, ...args.record });
+    }
+    if (args.event) {
+      const payload = args.record.payload;
+      const now = new Date().toISOString();
+      await insertActivityRows(ctx, args.tenantKey, {
+        activityId: uniqueActivityId("activity_grazing_decision_status"),
+        farmId: args.record.farmId,
+        eventType: "grazing_decision_status",
+        source: "decision_engine",
+        occurredAt: now,
+        recordedAt: now,
+        title: `Grazing decision ${args.event}`,
+        body: payload.farmer_response?.note ?? "",
+        payload: { ...decisionActivityPayload(payload), event: args.event },
+        provenance: { source: "grazing_decision", decision_id: args.record.decisionId },
+        visibility: "farm",
+        targets: await decisionTargets(ctx, args.tenantKey, payload),
+        attachments: [],
+      });
+    }
+    return true;
+  },
+});
+
+export const getDecision = query({
+  args: { tenantKey: v.string(), decisionId: v.string() },
+  handler: async (ctx, args) => {
+    const decision = await findDecision(ctx, args.tenantKey, args.decisionId);
+    if (decision) return decision;
+    return await ctx.db
+      .query("movementDecisions")
+      .withIndex("by_tenant_key_and_plan_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("planId", args.decisionId))
+      .unique();
+  },
+});
+
+export const listDecisions = query({
+  args: {
+    tenantKey: v.string(),
+    farmId: v.string(),
+    herdId: v.optional(v.string()),
+    status: v.optional(v.string()),
+    since: v.optional(v.string()),
+    until: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? 50, 500);
+    const rows = await ctx.db
+      .query("grazingDecisions")
+      .withIndex("by_tenant_key_farm_and_window", (q: any) => {
+        let range = q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId);
+        if (args.since) range = range.gte("windowStartsUtc", args.since);
+        if (args.until) range = range.lt("windowStartsUtc", args.until);
+        return range;
+      })
+      .order("desc")
+      .take(500);
+    const decisions: any[] = rows.filter(
+      (row: any) => (!args.herdId || row.herdId === args.herdId) && (!args.status || row.status === args.status),
+    );
+    if (decisions.length < limit && !args.status && !args.since && !args.until) {
+      const seen = new Set(decisions.map((row: any) => row.decisionId));
+      const legacy = await ctx.db
+        .query("movementDecisions")
+        .withIndex("by_tenant_key_farm_and_for_date", (q: any) => q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId))
+        .order("desc")
+        .take(limit);
+      for (const row of legacy) {
+        if (seen.has(row.planId) || (args.herdId && row.herdId !== args.herdId)) continue;
+        decisions.push(row);
+      }
+    }
+    return decisions.slice(0, limit);
+  },
+});
+
+export const getDecisionSettings = query({
+  args: { tenantKey: v.string(), farmId: v.string(), herdId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("decisionSettings")
+      .withIndex("by_tenant_key_farm_and_herd", (q: any) =>
+        q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId).eq("herdId", args.herdId),
+      )
+      .unique();
+  },
+});
+
+export const saveDecisionSettings = mutation({
+  args: { tenantKey: v.string(), farmId: v.string(), herdId: v.string(), payload: v.any() },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const existing = await ctx.db
+      .query("decisionSettings")
+      .withIndex("by_tenant_key_farm_and_herd", (q: any) =>
+        q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId).eq("herdId", args.herdId),
+      )
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, { payload: args.payload, updatedAt: now });
+    } else {
+      await ctx.db.insert("decisionSettings", { ...args, updatedAt: now });
+    }
+    await insertActivityRows(ctx, args.tenantKey, {
+      activityId: uniqueActivityId("activity_decision_settings"),
+      farmId: args.farmId,
+      eventType: "decision_settings",
+      source: "farmer",
+      occurredAt: now,
+      recordedAt: now,
+      title: `Autonomy set to ${args.payload?.autonomy ?? "inherited"}`,
+      body: "",
+      payload: args.payload,
+      provenance: { source: "decision_settings" },
+      visibility: "farm",
+      targets: [
+        { subjectType: "farm", subjectId: args.farmId, relationship: "farm" },
+        ...(args.herdId ? [{ subjectType: "herd", subjectId: args.herdId, relationship: "primary" }] : []),
+      ],
+      attachments: [],
+    });
+    return true;
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Land reports
+// ---------------------------------------------------------------------------
+
+const landReportRecord = v.object({
+  reportId: v.string(),
+  farmId: v.optional(v.string()),
+  cacheKey: v.optional(v.string()),
+  asOfUtc: v.string(),
+  landUnitIds: v.array(v.string()),
+  payload: v.any(),
+});
+
+export const saveLandReport = mutation({
+  args: { tenantKey: v.string(), record: landReportRecord },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("landReports")
+      .withIndex("by_tenant_key_and_report_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("reportId", args.record.reportId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, args.record);
+    } else {
+      await ctx.db.insert("landReports", { tenantKey: args.tenantKey, ...args.record });
+    }
+    return args.record.reportId;
+  },
+});
+
+export const getLandReport = query({
+  args: { tenantKey: v.string(), reportId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("landReports")
+      .withIndex("by_tenant_key_and_report_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("reportId", args.reportId))
+      .unique();
+  },
+});
+
+export const findLandReport = query({
+  args: { tenantKey: v.string(), cacheKey: v.string(), asOfStart: v.string(), asOfEnd: v.string() },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("landReports")
+      .withIndex("by_tenant_key_cache_and_as_of", (q: any) =>
+        q.eq("tenantKey", args.tenantKey).eq("cacheKey", args.cacheKey).gte("asOfUtc", args.asOfStart).lte("asOfUtc", args.asOfEnd),
+      )
+      .order("desc")
+      .take(1);
+    return rows[0] ?? null;
+  },
+});
+
+export const listLandReports = query({
+  args: { tenantKey: v.string(), farmId: v.string(), landUnitId: v.optional(v.string()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? 20, 200);
+    const rows = await ctx.db
+      .query("landReports")
+      .withIndex("by_tenant_key_farm_and_as_of", (q: any) => q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId))
+      .order("desc")
+      .take(500);
+    return rows.filter((row: any) => !args.landUnitId || row.landUnitIds.includes(args.landUnitId)).slice(0, limit);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Collars, boundaries, and position data
+// ---------------------------------------------------------------------------
+
+const collarRecord = v.object({
+  collarId: v.string(),
+  farmId: v.string(),
+  herdId: v.optional(v.string()),
+  payload: v.any(),
+});
+
+export const upsertCollar = mutation({
+  args: { tenantKey: v.string(), record: collarRecord },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("collars")
+      .withIndex("by_tenant_key_and_collar_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("collarId", args.record.collarId))
+      .unique();
+    if (existing) {
+      await ctx.db.replace(existing._id, { tenantKey: args.tenantKey, ...args.record });
+    } else {
+      await ctx.db.insert("collars", { tenantKey: args.tenantKey, ...args.record });
+    }
+    return args.record.collarId;
+  },
+});
+
+export const getCollar = query({
+  args: { tenantKey: v.string(), collarId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("collars")
+      .withIndex("by_tenant_key_and_collar_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("collarId", args.collarId))
+      .unique();
+  },
+});
+
+export const listCollars = query({
+  args: { tenantKey: v.string(), farmId: v.string(), herdId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("collars")
+      .withIndex("by_tenant_key_and_farm_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("farmId", args.farmId))
+      .take(1000);
+    return rows
+      .filter((row: any) => !args.herdId || row.herdId === args.herdId)
+      .sort((left: any, right: any) => left.collarId.localeCompare(right.collarId));
+  },
+});
+
+const boundaryCommandRecord = v.object({
+  commandId: v.string(),
+  farmId: v.string(),
+  herdId: v.string(),
+  decisionId: v.optional(v.string()),
+  version: v.number(),
+  status: v.string(),
+  payload: v.any(),
+});
+
+export const saveBoundaryCommand = mutation({
+  args: { tenantKey: v.string(), record: boundaryCommandRecord },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("boundaryCommands")
+      .withIndex("by_tenant_key_and_command_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("commandId", args.record.commandId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, args.record);
+    } else {
+      await ctx.db.insert("boundaryCommands", { tenantKey: args.tenantKey, ...args.record });
+    }
+    if (!existing || existing.status !== args.record.status) {
+      const now = new Date().toISOString();
+      const landUnitId = args.record.payload?.land_unit_id;
+      await insertActivityRows(ctx, args.tenantKey, {
+        activityId: uniqueActivityId("activity_boundary_command"),
+        farmId: args.record.farmId,
+        eventType: "boundary_command",
+        source: "collar_gateway",
+        occurredAt: now,
+        recordedAt: now,
+        title: `Boundary v${args.record.version} ${args.record.status}`,
+        body: args.record.payload?.error ?? "",
+        payload: {
+          command_id: args.record.commandId,
+          decision_id: args.record.decisionId,
+          version: args.record.version,
+          status: args.record.status,
+          collar_ids: args.record.payload?.collar_ids ?? [],
+        },
+        provenance: { source: "boundary_command", command_id: args.record.commandId },
+        visibility: "farm",
+        targets: [
+          { subjectType: "farm", subjectId: args.record.farmId, relationship: "farm" },
+          { subjectType: "herd", subjectId: args.record.herdId, relationship: "primary" },
+          ...(landUnitId ? await targetsForPaddock(ctx, args.tenantKey, landUnitId, "target") : []),
+        ],
+        attachments: [],
+      });
+    }
+    return args.record.commandId;
+  },
+});
+
+export const getBoundaryCommand = query({
+  args: { tenantKey: v.string(), commandId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("boundaryCommands")
+      .withIndex("by_tenant_key_and_command_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("commandId", args.commandId))
+      .unique();
+  },
+});
+
+export const listBoundaryCommands = query({
+  args: { tenantKey: v.string(), herdId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("boundaryCommands")
+      .withIndex("by_tenant_key_herd_and_version", (q: any) => q.eq("tenantKey", args.tenantKey).eq("herdId", args.herdId))
+      .order("desc")
+      .take(Math.min(args.limit ?? 20, 200));
+  },
+});
+
+export const recordBoundaryAck = mutation({
+  args: { tenantKey: v.string(), record: v.object({ commandId: v.string(), collarId: v.string(), payload: v.any() }) },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("boundaryAcks", { tenantKey: args.tenantKey, ...args.record });
+    return true;
+  },
+});
+
+export const listBoundaryAcks = query({
+  args: { tenantKey: v.string(), commandId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("boundaryAcks")
+      .withIndex("by_tenant_key_and_command_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("commandId", args.commandId))
+      .take(2000);
+  },
+});
+
+const timedRecord = v.object({
+  collarId: v.string(),
+  herdId: v.optional(v.string()),
+  farmId: v.optional(v.string()),
+  atUtc: v.string(),
+  payload: v.any(),
+});
+
+async function insertTimedRecords(ctx: any, tenantKey: string, table: "positionFixes" | "cueEvents", records: any[]) {
+  let inserted = 0;
+  for (const record of records) {
+    const existing = await ctx.db
+      .query(table)
+      .withIndex("by_tenant_key_collar_and_at", (q: any) =>
+        q.eq("tenantKey", tenantKey).eq("collarId", record.collarId).eq("atUtc", record.atUtc),
+      )
+      .first();
+    if (existing) continue;
+    const row = table === "cueEvents" ? { ...record, farmId: undefined } : record;
+    await ctx.db.insert(table, cleanPatch({ tenantKey, ...row }));
+    inserted += 1;
+  }
+  return inserted;
+}
+
+async function listTimedRecords(ctx: any, tenantKey: string, table: "positionFixes" | "cueEvents", args: any) {
+  return await ctx.db
+    .query(table)
+    .withIndex("by_tenant_key_herd_and_at", (q: any) => {
+      let range = q.eq("tenantKey", tenantKey).eq("herdId", args.herdId).gte("atUtc", args.since);
+      if (args.until) range = range.lt("atUtc", args.until);
+      return range;
+    })
+    .take(5000);
+}
+
+export const recordPositionFixes = mutation({
+  args: { tenantKey: v.string(), records: v.array(timedRecord) },
+  handler: async (ctx, args) => await insertTimedRecords(ctx, args.tenantKey, "positionFixes", args.records),
+});
+
+export const listPositionFixes = query({
+  args: { tenantKey: v.string(), herdId: v.string(), since: v.string(), until: v.optional(v.string()) },
+  handler: async (ctx, args) => await listTimedRecords(ctx, args.tenantKey, "positionFixes", args),
+});
+
+export const prunePositionFixes = mutation({
+  args: { tenantKey: v.string(), before: v.string() },
+  handler: async (ctx, args) => {
+    let removed = 0;
+    for (const table of ["positionFixes", "cueEvents"] as const) {
+      const rows = await ctx.db
+        .query(table)
+        .withIndex("by_tenant_key_and_at", (q: any) => q.eq("tenantKey", args.tenantKey).lt("atUtc", args.before))
+        .take(1000);
+      for (const row of rows) {
+        await ctx.db.delete(row._id);
+        removed += 1;
+      }
+    }
+    return removed;
+  },
+});
+
+export const recordCueEvents = mutation({
+  args: { tenantKey: v.string(), records: v.array(timedRecord) },
+  handler: async (ctx, args) => await insertTimedRecords(ctx, args.tenantKey, "cueEvents", args.records),
+});
+
+export const listCueEvents = query({
+  args: { tenantKey: v.string(), herdId: v.string(), since: v.string(), until: v.optional(v.string()) },
+  handler: async (ctx, args) => await listTimedRecords(ctx, args.tenantKey, "cueEvents", args),
+});
+
+const collarSummaryRecord = v.object({
+  summaryId: v.string(),
+  farmId: v.string(),
+  herdId: v.string(),
+  windowStartsUtc: v.string(),
+  payload: v.any(),
+});
+
+export const saveCollarSummary = mutation({
+  args: { tenantKey: v.string(), record: collarSummaryRecord },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("collarSummaries")
+      .withIndex("by_tenant_key_and_summary_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("summaryId", args.record.summaryId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, args.record);
+    } else {
+      await ctx.db.insert("collarSummaries", { tenantKey: args.tenantKey, ...args.record });
+    }
+    return args.record.summaryId;
+  },
+});
+
+export const getCollarSummary = query({
+  args: { tenantKey: v.string(), summaryId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("collarSummaries")
+      .withIndex("by_tenant_key_and_summary_id", (q: any) => q.eq("tenantKey", args.tenantKey).eq("summaryId", args.summaryId))
+      .unique();
+  },
+});
+
+export const listCollarSummaries = query({
+  args: { tenantKey: v.string(), herdId: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("collarSummaries")
+      .withIndex("by_tenant_key_herd_and_window", (q: any) => q.eq("tenantKey", args.tenantKey).eq("herdId", args.herdId))
+      .order("desc")
+      .take(Math.min(args.limit ?? 20, 200));
   },
 });

@@ -1,8 +1,8 @@
-# OpenPasture Convex Backend
+# Openpasture Convex Backend
 
 This folder is the optional first-party Convex backend for the open agent kit.
 SQLite remains the default backend. Use Convex when you want a managed,
-reactive store for a hosted or self-hosted OpenPasture runtime.
+reactive store for a hosted or self-hosted Openpasture runtime.
 
 ## What Lives Here
 
@@ -28,7 +28,7 @@ Set a runtime key in Convex:
 npx convex env set OPENPASTURE_CONVEX_STORE_KEY "replace-with-a-long-random-secret"
 ```
 
-Then point an OpenPasture runtime at the Convex HTTP endpoint:
+Then point an Openpasture runtime at the Convex HTTP endpoint:
 
 ```bash
 export OPENPASTURE_STORE=convex

@@ -2,29 +2,41 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 
 from openpasture.domain import (
     Animal,
+    BoundaryAck,
+    BoundaryCommand,
+    Collar,
+    CollarSummary,
+    CueEvent,
     DailyBrief,
     DataPipeline,
+    DecisionInputs,
+    DecisionSettings,
+    DecisionWindow,
     Farm,
     FarmActivityAttachment,
     FarmActivityEvent,
     FarmActivityTarget,
     FarmerAction,
+    FarmerResponse,
     GeoFeature,
     GeoPoint,
     GeoPolygon,
+    GrazingDecision,
     Herd,
+    LandReport,
     LandUnit,
-    MovementDecision,
     Observation,
+    PositionFix,
     WaterSource,
 )
+from openpasture.domain.clock import as_utc, parse_datetime, utc_text
 
 
 def _compact(value: dict[str, object]) -> dict[str, object]:
@@ -334,6 +346,7 @@ class ConvexStore:
                 "mediaThumbnailUrl": observation.media_thumbnail_url,
                 "mediaMetadata": observation.media_metadata,
                 "tags": observation.tags,
+                "provenance": observation.provenance or None,
             }
         )
 
@@ -355,6 +368,7 @@ class ConvexStore:
             ),
             media_metadata=record.get("mediaMetadata") if isinstance(record.get("mediaMetadata"), dict) else {},
             tags=[str(item) for item in record.get("tags", [])],
+            provenance=record.get("provenance") if isinstance(record.get("provenance"), dict) else {},
         )
 
     def _activity_record(self, event: FarmActivityEvent) -> dict[str, object]:
@@ -513,45 +527,56 @@ class ConvexStore:
             resolution=record.get("resolution") if isinstance(record.get("resolution"), str) else None,
         )
 
-    def _plan_record(self, plan: MovementDecision) -> dict[str, object]:
+    def _decision_record(self, decision: GrazingDecision) -> dict[str, object]:
+        # Indexed fields sit beside the full contract-shaped payload.
         return _compact(
             {
-                "planId": plan.id,
-                "farmId": plan.farm_id,
-                "herdId": plan.herd_id,
-                "forDate": _date_to_text(plan.for_date),
-                "action": plan.action,
-                "reasoning": plan.reasoning,
-                "confidence": plan.confidence,
-                "sourcePaddockId": plan.source_paddock_id,
-                "targetPaddockId": plan.target_paddock_id,
-                "knowledgeEntryIds": plan.knowledge_entry_ids,
-                "status": plan.status,
-                "farmerFeedback": plan.farmer_feedback,
-                "createdAt": _datetime_to_text(plan.created_at),
+                "decisionId": decision.decision_id,
+                "farmId": decision.farm_id,
+                "herdId": decision.herd_id,
+                "windowStartsUtc": utc_text(decision.window.starts_at),
+                "status": decision.status,
+                "createdAt": decision.created_at.isoformat(),
+                "payload": decision.to_dict(),
             }
         )
 
-    def _plan_from_record(self, record: object) -> MovementDecision | None:
+    def _decision_from_record(self, record: object) -> GrazingDecision | None:
         if not isinstance(record, dict):
             return None
+        payload = record.get("payload")
+        if isinstance(payload, dict):
+            return GrazingDecision.from_dict(payload)
+        # Legacy movementDecisions record (planId/forDate shape).
         plan_id = record.get("planId") or record.get("_id")
-        if not plan_id:
+        if not plan_id or not record.get("forDate"):
             return None
-        return MovementDecision(
-            id=str(plan_id),
+        starts_at = datetime.combine(_date_from_text(str(record["forDate"])), datetime.min.time(), tzinfo=timezone.utc)
+        status = {"pending": "proposed"}.get(str(record.get("status") or "pending"), str(record.get("status")))
+        if status not in {"proposed", "approved", "rejected", "modified"}:
+            status = "proposed"
+        created_at = as_utc(_datetime_from_text(str(record["createdAt"])))
+        feedback = record.get("farmerFeedback") if isinstance(record.get("farmerFeedback"), str) else None
+        return GrazingDecision(
+            decision_id=str(plan_id),
             farm_id=str(record["farmId"]),
             herd_id=record.get("herdId") if isinstance(record.get("herdId"), str) else None,
-            for_date=_date_from_text(str(record["forDate"])),
-            action=str(record["action"]),  # type: ignore[arg-type]
+            window=DecisionWindow(starts_at=starts_at, ends_at=starts_at + timedelta(days=1)),
+            action=str(record.get("action") or "NEEDS_INFO"),  # type: ignore[arg-type]
+            from_land_unit_id=record.get("sourcePaddockId") if isinstance(record.get("sourcePaddockId"), str) else None,
+            to_land_unit_id=record.get("targetPaddockId") if isinstance(record.get("targetPaddockId"), str) else None,
             reasoning=[str(item) for item in record.get("reasoning", [])],
             confidence=str(record.get("confidence") or "medium"),  # type: ignore[arg-type]
-            source_paddock_id=record.get("sourcePaddockId") if isinstance(record.get("sourcePaddockId"), str) else None,
-            target_paddock_id=record.get("targetPaddockId") if isinstance(record.get("targetPaddockId"), str) else None,
-            knowledge_entry_ids=[str(item) for item in record.get("knowledgeEntryIds", [])],
-            status=str(record.get("status") or "pending"),  # type: ignore[arg-type]
-            farmer_feedback=record.get("farmerFeedback") if isinstance(record.get("farmerFeedback"), str) else None,
-            created_at=_datetime_from_text(str(record["createdAt"])),
+            inputs=DecisionInputs(knowledge_entry_ids=[str(item) for item in record.get("knowledgeEntryIds", [])]),
+            status=status,  # type: ignore[arg-type]
+            farmer_response=(
+                FarmerResponse(at=created_at, response=status, note=feedback)  # type: ignore[arg-type]
+                if status != "proposed"
+                else None
+            ),
+            decided_by="legacy",
+            created_at=created_at,
+            updated_at=created_at,
         )
 
     def _brief_record(self, brief: DailyBrief) -> dict[str, object]:
@@ -561,7 +586,7 @@ class ConvexStore:
                 "farmId": brief.farm_id,
                 "generatedAt": _datetime_to_text(brief.generated_at),
                 "summary": brief.summary,
-                "recommendationId": brief.recommendation.id,
+                "recommendationId": brief.decision.decision_id,
                 "uncertaintyRequest": brief.uncertainty_request,
                 "highlights": brief.highlights,
             }
@@ -768,17 +793,44 @@ class ConvexStore:
             {"actionId": action_id, "resolvedAt": _datetime_to_text(datetime.utcnow()), "resolution": resolution},
         )
 
-    def create_plan(self, plan: MovementDecision) -> str:
-        return str(self._request("plans.create", {"record": self._plan_record(plan)}))
+    def create_decision(self, decision: GrazingDecision) -> str:
+        return str(self._request("decisions.create", {"record": self._decision_record(decision)}))
 
-    def get_plan(self, plan_id: str) -> MovementDecision | None:
-        return self._plan_from_record(self._request("plans.get", {"planId": plan_id}))
+    def update_decision(self, decision: GrazingDecision, *, event: str | None = None) -> None:
+        decision.updated_at = as_utc(datetime.utcnow())
+        self._request("decisions.update", _compact({"record": self._decision_record(decision), "event": event}))
 
-    def get_latest_plan(self, farm_id: str) -> MovementDecision | None:
-        return self._plan_from_record(self._request("plans.latest", {"farmId": farm_id}))
+    def get_decision(self, decision_id: str) -> GrazingDecision | None:
+        return self._decision_from_record(self._request("decisions.get", {"decisionId": decision_id}))
 
-    def update_plan_status(self, plan_id: str, status: str, feedback: str | None = None) -> None:
-        self._request("plans.updateStatus", {"planId": plan_id, "status": status, "farmerFeedback": feedback})
+    def get_latest_decision(self, farm_id: str, herd_id: str | None = None) -> GrazingDecision | None:
+        decisions = self.list_decisions(farm_id, herd_id=herd_id, limit=1)
+        return decisions[0] if decisions else None
+
+    def list_decisions(
+        self,
+        farm_id: str,
+        *,
+        herd_id: str | None = None,
+        status: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 50,
+    ) -> list[GrazingDecision]:
+        records = self._request(
+            "decisions.list",
+            _compact(
+                {
+                    "farmId": farm_id,
+                    "herdId": herd_id,
+                    "status": status,
+                    "since": utc_text(since) if since else None,
+                    "until": utc_text(until) if until else None,
+                    "limit": limit,
+                }
+            ),
+        )
+        return [decision for item in records or [] if (decision := self._decision_from_record(item))]
 
     def save_daily_brief(self, brief: DailyBrief) -> str:
         return str(self._request("dailyBriefs.save", {"record": self._brief_record(brief)}))
@@ -787,15 +839,234 @@ class ConvexStore:
         record = self._request("dailyBriefs.get", {"briefId": brief_id})
         if not isinstance(record, dict):
             return None
-        recommendation = self.get_plan(str(record["recommendationId"]))
-        if recommendation is None:
-            raise ValueError("Daily brief references a missing recommendation.")
+        decision = self.get_decision(str(record["recommendationId"]))
+        if decision is None:
+            raise ValueError("Daily brief references a missing decision.")
         return DailyBrief(
             id=str(record["briefId"]),
             farm_id=str(record["farmId"]),
             generated_at=_datetime_from_text(str(record["generatedAt"])),
             summary=str(record["summary"]),
-            recommendation=recommendation,
+            decision=decision,
             uncertainty_request=record.get("uncertaintyRequest") if isinstance(record.get("uncertaintyRequest"), str) else None,
             highlights=[str(item) for item in record.get("highlights", [])],
         )
+
+    def get_decision_settings(self, farm_id: str, herd_id: str | None = None) -> DecisionSettings | None:
+        record = self._request("decisionSettings.get", {"farmId": farm_id, "herdId": herd_id or ""})
+        payload = record.get("payload") if isinstance(record, dict) else None
+        return DecisionSettings.from_dict(payload) if isinstance(payload, dict) else None
+
+    def save_decision_settings(self, settings: DecisionSettings) -> None:
+        self._request(
+            "decisionSettings.save",
+            {"farmId": settings.farm_id, "herdId": settings.herd_id or "", "payload": settings.to_dict()},
+        )
+
+    def save_land_report(self, report: LandReport) -> str:
+        return str(
+            self._request(
+                "landReports.save",
+                {
+                    "record": _compact(
+                        {
+                            "reportId": report.report_id,
+                            "farmId": report.farm_id,
+                            "cacheKey": report.cache_key,
+                            "asOfUtc": utc_text(report.as_of),
+                            "landUnitIds": report.land_unit_ids,
+                            "payload": report.to_dict(),
+                        }
+                    )
+                },
+            )
+        )
+
+    @staticmethod
+    def _payload_of(record: object) -> dict[str, object] | None:
+        if isinstance(record, dict) and isinstance(record.get("payload"), dict):
+            return record["payload"]  # type: ignore[return-value]
+        return None
+
+    def get_land_report(self, report_id: str) -> LandReport | None:
+        payload = self._payload_of(self._request("landReports.get", {"reportId": report_id}))
+        return LandReport.from_dict(payload) if payload else None
+
+    def find_land_report(self, cache_key: str, as_of_start: datetime, as_of_end: datetime) -> LandReport | None:
+        payload = self._payload_of(
+            self._request(
+                "landReports.find",
+                {"cacheKey": cache_key, "asOfStart": utc_text(as_of_start), "asOfEnd": utc_text(as_of_end)},
+            )
+        )
+        return LandReport.from_dict(payload) if payload else None
+
+    def list_land_reports(
+        self, farm_id: str, *, land_unit_id: str | None = None, limit: int = 20
+    ) -> list[LandReport]:
+        records = self._request(
+            "landReports.list", _compact({"farmId": farm_id, "landUnitId": land_unit_id, "limit": limit})
+        )
+        return [LandReport.from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+    def upsert_collar(self, collar: Collar) -> str:
+        return str(
+            self._request(
+                "collars.upsert",
+                {
+                    "record": _compact(
+                        {
+                            "collarId": collar.collar_id,
+                            "farmId": collar.farm_id,
+                            "herdId": collar.herd_id,
+                            "payload": collar.to_dict(),
+                        }
+                    )
+                },
+            )
+        )
+
+    def get_collar(self, collar_id: str) -> Collar | None:
+        payload = self._payload_of(self._request("collars.get", {"collarId": collar_id}))
+        return Collar.from_dict(payload) if payload else None
+
+    def list_collars(self, farm_id: str, herd_id: str | None = None) -> list[Collar]:
+        records = self._request("collars.list", _compact({"farmId": farm_id, "herdId": herd_id}))
+        return [Collar.from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+    def save_boundary_command(self, command: BoundaryCommand) -> str:
+        return str(
+            self._request(
+                "boundaryCommands.save",
+                {
+                    "record": _compact(
+                        {
+                            "commandId": command.command_id,
+                            "farmId": command.farm_id,
+                            "herdId": command.herd_id,
+                            "decisionId": command.decision_id,
+                            "version": command.version,
+                            "status": command.status,
+                            "payload": command.to_dict(),
+                        }
+                    )
+                },
+            )
+        )
+
+    def get_boundary_command(self, command_id: str) -> BoundaryCommand | None:
+        payload = self._payload_of(self._request("boundaryCommands.get", {"commandId": command_id}))
+        return BoundaryCommand.from_dict(payload) if payload else None
+
+    def list_boundary_commands(self, herd_id: str, limit: int = 20) -> list[BoundaryCommand]:
+        records = self._request("boundaryCommands.list", {"herdId": herd_id, "limit": limit})
+        return [BoundaryCommand.from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+    def record_boundary_ack(self, ack: BoundaryAck) -> None:
+        self._request(
+            "boundaryAcks.record",
+            {"record": {"commandId": ack.command_id, "collarId": ack.collar_id, "payload": ack.to_dict()}},
+        )
+
+    def list_boundary_acks(self, command_id: str) -> list[BoundaryAck]:
+        records = self._request("boundaryAcks.list", {"commandId": command_id})
+        return [BoundaryAck.from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+    def record_position_fixes(self, fixes: list[PositionFix]) -> int:
+        if not fixes:
+            return 0
+        records = [
+            _compact(
+                {
+                    "collarId": fix.collar_id,
+                    "herdId": fix.herd_id,
+                    "farmId": fix.farm_id,
+                    "atUtc": utc_text(fix.at),
+                    "payload": fix.to_dict(),
+                }
+            )
+            for fix in fixes
+        ]
+        return int(self._request("positionFixes.record", {"records": records}) or 0)
+
+    def list_position_fixes(
+        self, herd_id: str, since: datetime, until: datetime | None = None
+    ) -> list[PositionFix]:
+        records = self._request(
+            "positionFixes.list",
+            _compact({"herdId": herd_id, "since": utc_text(since), "until": utc_text(until) if until else None}),
+        )
+        return [_fix_from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+    def prune_position_fixes(self, before: datetime) -> int:
+        return int(self._request("positionFixes.prune", {"before": utc_text(before)}) or 0)
+
+    def record_cue_events(self, cues: list[CueEvent]) -> int:
+        if not cues:
+            return 0
+        records = [
+            _compact({"collarId": cue.collar_id, "herdId": cue.herd_id, "atUtc": utc_text(cue.at), "payload": cue.to_dict()})
+            for cue in cues
+        ]
+        return int(self._request("cueEvents.record", {"records": records}) or 0)
+
+    def list_cue_events(self, herd_id: str, since: datetime, until: datetime | None = None) -> list[CueEvent]:
+        records = self._request(
+            "cueEvents.list",
+            _compact({"herdId": herd_id, "since": utc_text(since), "until": utc_text(until) if until else None}),
+        )
+        return [_cue_from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+    def save_collar_summary(self, summary: CollarSummary) -> str:
+        return str(
+            self._request(
+                "collarSummaries.save",
+                {
+                    "record": {
+                        "summaryId": summary.summary_id,
+                        "farmId": summary.farm_id,
+                        "herdId": summary.herd_id,
+                        "windowStartsUtc": utc_text(summary.window_starts_at),
+                        "payload": summary.to_dict(),
+                    }
+                },
+            )
+        )
+
+    def get_collar_summary(self, summary_id: str) -> CollarSummary | None:
+        payload = self._payload_of(self._request("collarSummaries.get", {"summaryId": summary_id}))
+        return CollarSummary.from_dict(payload) if payload else None
+
+    def list_collar_summaries(self, herd_id: str, limit: int = 20) -> list[CollarSummary]:
+        records = self._request("collarSummaries.list", {"herdId": herd_id, "limit": limit})
+        return [CollarSummary.from_dict(payload) for item in records or [] if (payload := self._payload_of(item))]
+
+
+def _fix_from_dict(data: dict[str, object]) -> PositionFix:
+    point = data.get("point")
+    return PositionFix(
+        collar_id=str(data["collar_id"]),
+        at=parse_datetime(data.get("at")) or datetime.utcnow(),
+        point=[float(item) for item in point] if isinstance(point, list) else [0.0, 0.0],
+        accuracy_meters=data.get("accuracy_meters"),  # type: ignore[arg-type]
+        activity=data.get("activity") if isinstance(data.get("activity"), str) else None,
+        sats=data.get("sats"),  # type: ignore[arg-type]
+        farm_id=data.get("farm_id") if isinstance(data.get("farm_id"), str) else None,
+        herd_id=data.get("herd_id") if isinstance(data.get("herd_id"), str) else None,
+        land_unit_id=data.get("land_unit_id") if isinstance(data.get("land_unit_id"), str) else None,
+        boundary_version=data.get("boundary_version"),  # type: ignore[arg-type]
+    )
+
+
+def _cue_from_dict(data: dict[str, object]) -> CueEvent:
+    point = data.get("point")
+    return CueEvent(
+        collar_id=str(data["collar_id"]),
+        at=parse_datetime(data.get("at")) or datetime.utcnow(),
+        type=str(data.get("type") or "audio"),
+        point=[float(item) for item in point] if isinstance(point, list) else None,
+        level=data.get("level"),  # type: ignore[arg-type]
+        margin_meters=data.get("margin_meters"),  # type: ignore[arg-type]
+        farm_id=data.get("farm_id") if isinstance(data.get("farm_id"), str) else None,
+        herd_id=data.get("herd_id") if isinstance(data.get("herd_id"), str) else None,
+    )

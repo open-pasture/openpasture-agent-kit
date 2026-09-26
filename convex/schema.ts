@@ -101,6 +101,7 @@ export default defineSchema({
     mediaThumbnailUrl: v.optional(v.string()),
     mediaMetadata: v.optional(v.any()),
     tags: v.array(v.string()),
+    provenance: v.optional(v.any()),
   })
     .index("by_tenant_key_and_observation_id", ["tenantKey", "observationId"])
     .index("by_tenant_key_farm_and_observed_at", ["tenantKey", "farmId", "observedAt"])
@@ -186,6 +187,7 @@ export default defineSchema({
     .index("by_tenant_key_and_action_id", ["tenantKey", "actionId"])
     .index("by_tenant_key_farm_and_resolved_at", ["tenantKey", "farmId", "resolvedAt"]),
 
+  // Legacy pre-decision-record rows. Read as a fallback; new decisions go to grazingDecisions.
   movementDecisions: defineTable({
     tenantKey: v.string(),
     planId: v.string(),
@@ -205,6 +207,107 @@ export default defineSchema({
     .index("by_tenant_key_and_plan_id", ["tenantKey", "planId"])
     .index("by_tenant_key_farm_and_for_date", ["tenantKey", "farmId", "forDate"]),
 
+  // The decision record. Indexed fields sit beside the contract-shaped payload.
+  grazingDecisions: defineTable({
+    tenantKey: v.string(),
+    decisionId: v.string(),
+    farmId: v.string(),
+    herdId: v.optional(v.string()),
+    windowStartsUtc: v.string(),
+    status: v.string(),
+    createdAt: v.string(),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_and_decision_id", ["tenantKey", "decisionId"])
+    .index("by_tenant_key_farm_and_window", ["tenantKey", "farmId", "windowStartsUtc"]),
+
+  decisionSettings: defineTable({
+    tenantKey: v.string(),
+    farmId: v.string(),
+    herdId: v.string(),
+    payload: v.any(),
+    updatedAt: v.string(),
+  }).index("by_tenant_key_farm_and_herd", ["tenantKey", "farmId", "herdId"]),
+
+  landReports: defineTable({
+    tenantKey: v.string(),
+    reportId: v.string(),
+    farmId: v.optional(v.string()),
+    cacheKey: v.optional(v.string()),
+    asOfUtc: v.string(),
+    landUnitIds: v.array(v.string()),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_and_report_id", ["tenantKey", "reportId"])
+    .index("by_tenant_key_cache_and_as_of", ["tenantKey", "cacheKey", "asOfUtc"])
+    .index("by_tenant_key_farm_and_as_of", ["tenantKey", "farmId", "asOfUtc"]),
+
+  collars: defineTable({
+    tenantKey: v.string(),
+    collarId: v.string(),
+    farmId: v.string(),
+    herdId: v.optional(v.string()),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_and_collar_id", ["tenantKey", "collarId"])
+    .index("by_tenant_key_and_farm_id", ["tenantKey", "farmId"]),
+
+  boundaryCommands: defineTable({
+    tenantKey: v.string(),
+    commandId: v.string(),
+    farmId: v.string(),
+    herdId: v.string(),
+    decisionId: v.optional(v.string()),
+    version: v.number(),
+    status: v.string(),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_and_command_id", ["tenantKey", "commandId"])
+    .index("by_tenant_key_herd_and_version", ["tenantKey", "herdId", "version"]),
+
+  boundaryAcks: defineTable({
+    tenantKey: v.string(),
+    commandId: v.string(),
+    collarId: v.string(),
+    payload: v.any(),
+  }).index("by_tenant_key_and_command_id", ["tenantKey", "commandId"]),
+
+  // Raw collar data is kept for a retention window; summaries are kept indefinitely.
+  positionFixes: defineTable({
+    tenantKey: v.string(),
+    collarId: v.string(),
+    herdId: v.optional(v.string()),
+    farmId: v.optional(v.string()),
+    atUtc: v.string(),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_herd_and_at", ["tenantKey", "herdId", "atUtc"])
+    .index("by_tenant_key_collar_and_at", ["tenantKey", "collarId", "atUtc"])
+    .index("by_tenant_key_and_at", ["tenantKey", "atUtc"]),
+
+  cueEvents: defineTable({
+    tenantKey: v.string(),
+    collarId: v.string(),
+    herdId: v.optional(v.string()),
+    atUtc: v.string(),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_herd_and_at", ["tenantKey", "herdId", "atUtc"])
+    .index("by_tenant_key_collar_and_at", ["tenantKey", "collarId", "atUtc"])
+    .index("by_tenant_key_and_at", ["tenantKey", "atUtc"]),
+
+  collarSummaries: defineTable({
+    tenantKey: v.string(),
+    summaryId: v.string(),
+    farmId: v.string(),
+    herdId: v.string(),
+    windowStartsUtc: v.string(),
+    payload: v.any(),
+  })
+    .index("by_tenant_key_and_summary_id", ["tenantKey", "summaryId"])
+    .index("by_tenant_key_herd_and_window", ["tenantKey", "herdId", "windowStartsUtc"]),
+
+  // recommendationId holds the grazing decision id.
   dailyBriefs: defineTable({
     tenantKey: v.string(),
     briefId: v.string(),

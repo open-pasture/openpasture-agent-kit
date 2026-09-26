@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import fields, is_dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from functools import wraps
 from typing import Callable, Mapping
 from uuid import uuid4
@@ -124,15 +124,44 @@ def parse_date_value(value: object | None, *, default: date | None = None) -> da
 
 
 def parse_datetime_value(value: object | None, *, default: datetime | None = None) -> datetime:
-    if value is None:
+    if value is None or value == "":
         if default is not None:
             return default
         raise ValueError("Datetime value is required.")
     if isinstance(value, datetime):
         return value
     if isinstance(value, str):
-        return datetime.fromisoformat(value)
+        text = value.strip()
+        if len(text) == 10:
+            # A bare date means midnight UTC on that date.
+            return datetime.fromisoformat(text).replace(tzinfo=timezone.utc)
+        return datetime.fromisoformat(text)
     raise ValueError("Datetime must be an ISO 8601 string.")
+
+
+def optional_datetime(args: dict[str, object], key: str) -> datetime | None:
+    value = args.get(key)
+    if value is None or value == "":
+        return None
+    return parse_datetime_value(value)
+
+
+def optional_mapping(args: dict[str, object], key: str) -> dict[str, object] | None:
+    value = args.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise ValueError(f"'{key}' must be an object.")
+    return dict(value)
+
+
+def optional_text_list(args: dict[str, object], key: str) -> list[str]:
+    """A list of strings, or one string treated as a single item."""
+
+    value = args.get(key)
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    return optional_str_list(args, key)
 
 
 def parse_geo_point(value: object | None) -> GeoPoint | None:
@@ -203,6 +232,11 @@ def serialize_value(value: object) -> object:
         return value.to_geojson()
     if isinstance(value, GeoFeature):
         return value.to_geojson()
+    # Contract types (decisions, land reports, boundary commands) carry their own shape.
+    if callable(getattr(value, "to_contract", None)):
+        return serialize_value(value.to_contract())
+    if is_dataclass(value) and callable(getattr(value, "to_dict", None)):
+        return serialize_value(value.to_dict())
     if is_dataclass(value):
         return {field.name: serialize_value(getattr(value, field.name)) for field in fields(value)}
     if isinstance(value, dict):

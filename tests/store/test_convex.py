@@ -14,6 +14,7 @@ class FakeConvexStore(ConvexStore):
             "landUnits": {},
             "herds": {},
             "observations": {},
+            "decisions": {},
         }
 
     def _request(self, operation: str, args: dict[str, object] | None = None) -> object:
@@ -66,6 +67,22 @@ class FakeConvexStore(ConvexStore):
                 for record in self.records["observations"].values()
                 if record["farmId"] == payload["farmId"] and str(record["observedAt"]) >= cutoff
             ]
+        if operation in {"decisions.create", "decisions.update"}:
+            record = payload["record"]
+            assert isinstance(record, dict)
+            self.records["decisions"][str(record["decisionId"])] = record
+            return record["decisionId"]
+        if operation == "decisions.get":
+            return self.records["decisions"].get(str(payload["decisionId"]))
+        if operation == "decisions.list":
+            rows = [
+                record
+                for record in self.records["decisions"].values()
+                if record["farmId"] == payload["farmId"]
+                and ("herdId" not in payload or record.get("herdId") == payload["herdId"])
+                and ("status" not in payload or record["status"] == payload["status"])
+            ]
+            return sorted(rows, key=lambda record: str(record["windowStartsUtc"]), reverse=True)
         raise AssertionError(f"Unexpected operation: {operation}")
 
 
@@ -173,3 +190,56 @@ def test_convex_store_round_trips_multipolygon_farm_boundary():
     assert loaded is not None
     assert loaded.boundary is not None
     assert loaded.boundary.to_geojson()["geometry"]["type"] == "MultiPolygon"
+
+
+def test_convex_store_round_trips_grazing_decisions():
+    from openpasture.domain import DecisionWindow, FarmerResponse, GrazingDecision
+
+    store = FakeConvexStore()
+    starts = datetime(2026, 9, 25, 6, 0).astimezone()
+    decision = GrazingDecision(
+        decision_id="gd_1",
+        farm_id="farm_1",
+        herd_id="herd_1",
+        window=DecisionWindow(starts_at=starts, ends_at=starts + timedelta(days=1)),
+        action="MOVE",
+        to_land_unit_id="paddock_4",
+        to_boundary={"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]},
+        reasoning=["Paddock 4 has rested 38 days."],
+    )
+    store.create_decision(decision)
+    decision.status = "modified"
+    decision.farmer_response = FarmerResponse(at=starts, response="modified", note="Shift the west line.")
+    store.update_decision(decision, event="modified")
+
+    loaded = store.get_decision("gd_1")
+    assert loaded is not None
+    assert loaded.status == "modified"
+    assert loaded.farmer_response.note == "Shift the west line."
+    assert loaded.to_boundary == decision.to_boundary
+    assert store.records["decisions"]["gd_1"]["payload"]["window"]["starts_at"] == starts.isoformat()
+    assert [item.decision_id for item in store.list_decisions("farm_1", herd_id="herd_1")] == ["gd_1"]
+
+
+def test_convex_store_reads_legacy_movement_decisions():
+    store = FakeConvexStore()
+    legacy = {
+        "planId": "plan_1",
+        "farmId": "farm_1",
+        "herdId": "herd_1",
+        "forDate": "2026-05-02",
+        "action": "MOVE",
+        "reasoning": ["Short."],
+        "confidence": "medium",
+        "sourcePaddockId": "p1",
+        "targetPaddockId": "p2",
+        "knowledgeEntryIds": [],
+        "status": "pending",
+        "createdAt": "2026-05-02T11:00:00",
+    }
+    decision = store._decision_from_record(legacy)
+
+    assert decision is not None
+    assert decision.decision_id == "plan_1"
+    assert decision.status == "proposed"
+    assert decision.to_land_unit_id == "p2"

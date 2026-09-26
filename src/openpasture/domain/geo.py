@@ -292,3 +292,103 @@ class BoundingBox:
             max_longitude=max(longitudes),
             max_latitude=max(latitudes),
         )
+
+
+def geometry_polygons(geometry: Mapping[str, object]) -> list[list[list[list[float]]]]:
+    """Return a geometry's polygons as lists of rings (Feature, Polygon, MultiPolygon)."""
+
+    if geometry.get("type") == "Feature":
+        inner = geometry.get("geometry")
+        return geometry_polygons(inner) if isinstance(inner, Mapping) else []
+    geometry_type = geometry.get("type")
+    coordinates = geometry.get("coordinates")
+    if not isinstance(coordinates, list):
+        return []
+    if geometry_type == "Polygon":
+        return [coordinates]  # type: ignore[list-item]
+    if geometry_type == "MultiPolygon":
+        return [polygon for polygon in coordinates if isinstance(polygon, list)]
+    return []
+
+
+def _point_in_ring(longitude: float, latitude: float, ring: list[list[float]]) -> bool:
+    inside = False
+    count = len(ring)
+    if count < 3:
+        return False
+    j = count - 1
+    for i in range(count):
+        xi, yi = float(ring[i][0]), float(ring[i][1])
+        xj, yj = float(ring[j][0]), float(ring[j][1])
+        if (yi > latitude) != (yj > latitude):
+            crossing = (xj - xi) * (latitude - yi) / (yj - yi) + xi
+            if longitude < crossing:
+                inside = not inside
+        j = i
+    return inside
+
+
+def point_in_geometry(point: list[float] | tuple[float, float], geometry: Mapping[str, object]) -> bool:
+    """Ray-casting point-in-polygon test. Holes are honored."""
+
+    longitude, latitude = float(point[0]), float(point[1])
+    for polygon in geometry_polygons(geometry):
+        if not polygon or not _point_in_ring(longitude, latitude, polygon[0]):
+            continue
+        if any(_point_in_ring(longitude, latitude, hole) for hole in polygon[1:]):
+            continue
+        return True
+    return False
+
+
+def geometry_bbox(geometry: Mapping[str, object], buffer_meters: float = 0.0) -> BoundingBox:
+    """Bounding box for a Point, Polygon, MultiPolygon, or Feature, with an optional buffer."""
+
+    if geometry.get("type") == "Feature":
+        inner = geometry.get("geometry")
+        if not isinstance(inner, Mapping):
+            raise ValueError("GeoJSON Feature must include a geometry object.")
+        geometry = inner
+    if geometry.get("type") == "Point":
+        coordinates = geometry.get("coordinates")
+        if not isinstance(coordinates, list) or len(coordinates) < 2:
+            raise ValueError("Invalid GeoJSON Point payload.")
+        positions = [_ensure_number_pair(coordinates)]
+    else:
+        positions = [point for polygon in geometry_polygons(geometry) for ring in polygon for point in ring]
+        positions = [_ensure_number_pair(point) for point in positions]
+    if not positions:
+        raise ValueError("Cannot compute a bounding box from empty geometry.")
+    mean_latitude = sum(point[1] for point in positions) / len(positions)
+    lat_pad = buffer_meters / 111_320.0
+    lon_pad = buffer_meters / max(111_320.0 * math.cos(math.radians(mean_latitude)), 1e-6)
+    return BoundingBox(
+        min_longitude=min(point[0] for point in positions) - lon_pad,
+        min_latitude=min(point[1] for point in positions) - lat_pad,
+        max_longitude=max(point[0] for point in positions) + lon_pad,
+        max_latitude=max(point[1] for point in positions) + lat_pad,
+    )
+
+
+def bboxes_intersect(left: BoundingBox, right: BoundingBox) -> bool:
+    return not (
+        left.max_longitude < right.min_longitude
+        or right.max_longitude < left.min_longitude
+        or left.max_latitude < right.min_latitude
+        or right.max_latitude < left.min_latitude
+    )
+
+
+def geometry_centroid(geometry: Mapping[str, object]) -> list[float]:
+    """Simple vertex-average centroid, good enough for a weather lookup point."""
+
+    if geometry.get("type") == "Point":
+        coordinates = geometry.get("coordinates")
+        return [float(coordinates[0]), float(coordinates[1])]  # type: ignore[index]
+    positions = [point for polygon in geometry_polygons(geometry) for point in (polygon[0] if polygon else [])]
+    if not positions:
+        raise ValueError("Cannot compute a centroid from empty geometry.")
+    return [
+        sum(float(point[0]) for point in positions) / len(positions),
+        sum(float(point[1]) for point in positions) / len(positions),
+    ]

@@ -108,7 +108,7 @@ def _cmd_validate_alpha(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="openpasture",
-        description="Agent kit for the openPasture farm operating toolkit.",
+        description="Openpasture engine and agent kit: daily grazing decisions between Alexandria and OpenCollar.",
     )
     parser.add_argument("--data-dir", help="Override OPENPASTURE_DATA_DIR for this invocation.")
     parser.add_argument("--store", choices=["sqlite", "convex"], help="Override OPENPASTURE_STORE.")

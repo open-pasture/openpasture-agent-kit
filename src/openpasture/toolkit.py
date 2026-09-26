@@ -1,4 +1,4 @@
-"""Framework-neutral openPasture tool catalog."""
+"""Framework-neutral Openpasture tool catalog."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from openpasture.tools import brief, farm, geo, knowledge, observe, onboarding, pipeline, plan
+from openpasture.tools import brief, collar, decision, farm, geo, knowledge, land, observe, onboarding, pipeline
 
 ToolHandler = Callable[[dict[str, object]], str]
 
 
 @dataclass(frozen=True)
 class ToolSpec:
-    """A portable executable capability exposed by openPasture."""
+    """A portable executable capability exposed by Openpasture."""
 
     name: str
     schema: dict[str, Any]
@@ -132,7 +132,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         handler=farm.handle_get_farm_state,
         description=(
             "Get the current farm snapshot with herds, land units, recent observations, "
-            "and latest plan. farm_id is optional when one farm is active."
+            "and the latest grazing decision. farm_id is optional when one farm is active."
         ),
         tags=("farm", "context"),
         emoji="📋",
@@ -142,7 +142,10 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         name="set_herd_position",
         schema=farm.SET_HERD_POSITION_SCHEMA,
         handler=farm.handle_set_herd_position,
-        description="Set which paddock a herd is currently in.",
+        description=(
+            "Set which paddock a herd is currently in. When the herd wears collars, collar fixes are the "
+            "primary source of location."
+        ),
         tags=("herd", "paddock"),
         emoji="📍",
         related_skills=("farm-onboarding", "rotation-planning"),
@@ -169,22 +172,136 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         related_skills=("rotation-planning",),
     ),
     ToolSpec(
-        name="movement_decision",
-        schema=plan.MOVEMENT_DECISION_SCHEMA,
-        handler=plan.handle_movement_decision,
-        description="Create a movement recommendation for a herd.",
-        tags=("planning", "grazing"),
-        emoji="🐄",
-        related_skills=("rotation-planning",),
+        name="get_land_report",
+        schema=land.GET_LAND_REPORT_SCHEMA,
+        handler=land.handle_get_land_report,
+        description=(
+            "Get an Alexandria land report (weather, imagery, climate, hazards, soil, vegetation, species, "
+            "water, terrain) for a land unit or GeoJSON geometry. Sections are stored as observations."
+        ),
+        tags=("land", "alexandria", "context"),
+        emoji="🛰️",
+        related_skills=("daily-grazing-decision", "pasture-assessment"),
     ),
     ToolSpec(
-        name="approve_plan",
-        schema=plan.APPROVE_PLAN_SCHEMA,
-        handler=plan.handle_approve_plan,
-        description="Approve or reject a grazing plan.",
-        tags=("planning", "approval"),
+        name="record_collar_report",
+        schema=collar.RECORD_COLLAR_REPORT_SCHEMA,
+        handler=collar.handle_record_collar_report,
+        description="Ingest a collar position report (fixes, cues, battery) and any boundary acknowledgements.",
+        tags=("collar", "herd", "ingestion"),
+        emoji="📡",
+        related_skills=("daily-grazing-decision",),
+    ),
+    ToolSpec(
+        name="get_herd_positions",
+        schema=collar.GET_HERD_POSITIONS_SCHEMA,
+        handler=collar.handle_get_herd_positions,
+        description="Latest collar fixes and the current collar summary for a herd.",
+        tags=("collar", "herd", "context"),
+        emoji="📍",
+        related_skills=("daily-grazing-decision",),
+    ),
+    ToolSpec(
+        name="compute_grazing_signals",
+        schema=decision.COMPUTE_GRAZING_SIGNALS_SCHEMA,
+        handler=decision.handle_compute_grazing_signals,
+        description=(
+            "Compute grazing signals: pressure, rest days, forage, recovery, feed budget, risk flags, "
+            "and herd behavior."
+        ),
+        tags=("calculations", "grazing", "context"),
+        emoji="🧮",
+        related_skills=("daily-grazing-decision", "rotation-planning"),
+    ),
+    ToolSpec(
+        name="assemble_decision_context",
+        schema=decision.ASSEMBLE_DECISION_CONTEXT_SCHEMA,
+        handler=decision.handle_assemble_decision_context,
+        description="Assemble everything the engine sees before today's grazing decision for a herd.",
+        tags=("decision", "grazing", "context"),
+        emoji="🧭",
+        related_skills=("daily-grazing-decision",),
+    ),
+    ToolSpec(
+        name="submit_grazing_decision",
+        schema=decision.SUBMIT_GRAZING_DECISION_SCHEMA,
+        handler=decision.handle_submit_grazing_decision,
+        description=(
+            "Submit STAY, MOVE, or NEEDS_INFO for a herd's window. The engine applies the farmer's autonomy "
+            "setting and sends the boundary only when allowed."
+        ),
+        tags=("decision", "grazing", "collar"),
+        emoji="🐄",
+        related_skills=("daily-grazing-decision", "rotation-planning"),
+    ),
+    ToolSpec(
+        name="respond_to_decision",
+        schema=decision.RESPOND_TO_DECISION_SCHEMA,
+        handler=decision.handle_respond_to_decision,
+        description="Record the farmer's approve, modify (with boundary), or reject on a decision.",
+        tags=("decision", "approval"),
         emoji="✅",
-        related_skills=("rotation-planning",),
+        related_skills=("daily-grazing-decision", "morning-brief"),
+    ),
+    ToolSpec(
+        name="get_decision",
+        schema=decision.GET_DECISION_SCHEMA,
+        handler=decision.handle_get_decision,
+        description="Get one grazing decision with its boundary command and acknowledgements.",
+        tags=("decision", "record"),
+        emoji="🗒️",
+        related_skills=("daily-grazing-decision",),
+    ),
+    ToolSpec(
+        name="list_decisions",
+        schema=decision.LIST_DECISIONS_SCHEMA,
+        handler=decision.handle_list_decisions,
+        description="List grazing decisions, filtered by herd, status, or date range.",
+        tags=("decision", "record"),
+        emoji="🗂️",
+        related_skills=("daily-grazing-decision", "rotation-planning"),
+    ),
+    ToolSpec(
+        name="get_boundary_status",
+        schema=collar.GET_BOUNDARY_STATUS_SCHEMA,
+        handler=collar.handle_get_boundary_status,
+        description="Get a boundary command, its collar acknowledgements, and which collars have not confirmed.",
+        tags=("collar", "boundary"),
+        emoji="🚧",
+        related_skills=("daily-grazing-decision",),
+    ),
+    ToolSpec(
+        name="set_autonomy",
+        schema=decision.SET_AUTONOMY_SCHEMA,
+        handler=decision.handle_set_autonomy,
+        description=(
+            "Set autonomy for the farm or a herd: propose (default), apply_unless_stopped, or apply. "
+            "Also sets the decision window."
+        ),
+        tags=("decision", "settings"),
+        emoji="🎚️",
+        related_skills=("daily-grazing-decision", "farm-onboarding"),
+    ),
+    ToolSpec(
+        name="evaluate_decision_outcome",
+        schema=decision.EVALUATE_DECISION_OUTCOME_SCHEMA,
+        handler=decision.handle_evaluate_decision_outcome,
+        description="Evaluate what happened after a decision and write the outcome to the record.",
+        tags=("decision", "learning"),
+        emoji="🔁",
+        related_skills=("daily-grazing-decision",),
+    ),
+    ToolSpec(
+        name="run_decision_cycle",
+        schema=decision.RUN_DECISION_CYCLE_SCHEMA,
+        handler=decision.handle_run_decision_cycle,
+        description=(
+            "Run the fallback heuristic decision cycle for one herd or all herds. This is what the scheduler "
+            "runs each window."
+        ),
+        tags=("decision", "automation"),
+        emoji="⏱️",
+        related_skills=("daily-grazing-decision", "morning-brief"),
     ),
     ToolSpec(
         name="store_lesson",
@@ -290,12 +407,12 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
         schema=brief.GENERATE_MORNING_BRIEF_SCHEMA,
         handler=brief.handle_generate_morning_brief,
         description=(
-            "Generate the current morning brief and persist the recommendation plus daily brief. "
+            "Generate the farmer-readable morning brief wrapping this window's grazing decision. "
             "farm_id is optional when one farm is active."
         ),
-        tags=("briefing", "planning"),
+        tags=("briefing", "decision"),
         emoji="🌅",
-        related_skills=("morning-brief", "rotation-planning"),
+        related_skills=("morning-brief", "daily-grazing-decision"),
     ),
 )
 
@@ -308,7 +425,7 @@ def get_tool_spec(name: str) -> ToolSpec:
     for spec in TOOL_SPECS:
         if spec.name == name:
             return spec
-    raise KeyError(f"Unknown openPasture tool '{name}'.")
+    raise KeyError(f"Unknown Openpasture tool '{name}'.")
 
 
 def tool_names() -> list[str]:

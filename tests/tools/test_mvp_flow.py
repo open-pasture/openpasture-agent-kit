@@ -7,6 +7,7 @@ import pytest
 
 from openpasture.domain import Observation
 from openpasture.ingestion.weather import WeatherObservationPipeline
+from openpasture.land import FixtureLandSource
 from openpasture.runtime import initialize
 from openpasture.tools.brief import handle_generate_morning_brief
 from openpasture.tools.farm import (
@@ -16,7 +17,7 @@ from openpasture.tools.farm import (
     handle_set_herd_position,
 )
 from openpasture.tools.observe import handle_record_observation
-from openpasture.tools.plan import handle_approve_plan
+from openpasture.tools.decision import handle_respond_to_decision
 
 pytestmark = pytest.mark.alpha
 
@@ -100,21 +101,25 @@ def test_field_ready_flow_moves_herd_using_public_tools(monkeypatch):
     )
 
     brief_result = json.loads(handle_generate_morning_brief({"farm_id": farm_id}))
-    plan = brief_result["brief"]["recommendation"]
+    decision = brief_result["brief"]["decision"]
 
-    assert plan["action"] == "MOVE"
-    assert plan["target_paddock_id"] == "paddock_next"
+    assert decision["action"] == "MOVE"
+    assert decision["to_land_unit_id"] == "paddock_next"
+    assert decision["status"] == "proposed"
+    assert decision["autonomy"] == "propose"
 
     approval_result = json.loads(
-        handle_approve_plan(
+        handle_respond_to_decision(
             {
-                "plan_id": plan["id"],
-                "status": "approved",
+                "decision_id": decision["decision_id"],
+                "response": "approve",
             }
         )
     )
 
-    assert approval_result["plan"]["status"] == "approved"
+    # No collars on this herd: nothing is sent and the farmer moves the herd.
+    assert approval_result["decision"]["status"] == "approved"
+    assert approval_result["boundary_command"] is None
 
     farm_state = json.loads(handle_get_farm_state({"farm_id": farm_id}))
     herd = farm_state["herds"][0]
@@ -197,20 +202,20 @@ def test_observation_with_herd_and_paddock_infers_current_position(monkeypatch):
     assert farm_state["herds"][0]["current_paddock_id"] == "paddock_current"
 
     brief_result = json.loads(handle_generate_morning_brief({"farm_id": farm_id}))
-    plan = brief_result["brief"]["recommendation"]
+    decision = brief_result["brief"]["decision"]
 
-    assert plan["action"] == "MOVE"
-    assert plan["source_paddock_id"] == "paddock_current"
-    assert plan["target_paddock_id"] == "paddock_next"
+    assert decision["action"] == "MOVE"
+    assert decision["from_land_unit_id"] == "paddock_current"
+    assert decision["to_land_unit_id"] == "paddock_next"
 
 
-def test_brief_generation_degrades_gracefully_when_weather_fails(monkeypatch):
+def test_brief_generation_degrades_gracefully_when_land_reports_fail(monkeypatch):
     initialize()
 
-    def broken_collect(self, farm_id: str):
-        raise OSError(f"weather offline for {farm_id}")
+    def broken_fetch(self, request):
+        raise OSError("land source offline")
 
-    monkeypatch.setattr(WeatherObservationPipeline, "collect", broken_collect)
+    monkeypatch.setattr(FixtureLandSource, "fetch", broken_fetch)
 
     register_result = json.loads(
         handle_register_farm(
@@ -273,4 +278,4 @@ def test_brief_generation_degrades_gracefully_when_weather_fails(monkeypatch):
 
     brief_result = json.loads(handle_generate_morning_brief({"farm_id": farm_id}))
 
-    assert brief_result["brief"]["recommendation"]["action"] == "MOVE"
+    assert brief_result["brief"]["decision"]["action"] == "MOVE"

@@ -13,7 +13,7 @@ from openpasture.tools.observe import handle_record_observation
 pytestmark = pytest.mark.alpha
 
 
-def test_register_farm_schedules_daily_brief(monkeypatch):
+def test_register_farm_schedules_decision_cycle_per_herd(monkeypatch):
     initialize()
 
     farm_result = json.loads(
@@ -33,7 +33,7 @@ def test_register_farm_schedules_daily_brief(monkeypatch):
     farm_id = farm_result["farm"]["id"]
 
     scheduler = get_brief_scheduler()
-    job = scheduler._scheduler.get_job(f"morning-brief:{farm_id}")
+    job = scheduler._scheduler.get_job(f"decision-cycle:{farm_id}:herd_scheduled")
     assert job is not None
 
 
@@ -119,9 +119,9 @@ def test_scheduler_run_persists_and_delivers_brief(monkeypatch):
 
     brief = get_brief_scheduler().run_brief_now(farm_id)
 
-    assert brief.recommendation.action == "MOVE"
+    assert brief.decision.action == "MOVE"
     assert delivered_messages
-    assert "Scheduled morning brief" in delivered_messages[0]
+    assert "Scheduled grazing decision" in delivered_messages[0]
 
     store = get_store()
     saved_brief = store.get_daily_brief(brief.id)

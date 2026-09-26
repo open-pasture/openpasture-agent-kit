@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime, timedelta, timezone
 
 from openpasture.domain import (
     Animal,
@@ -11,8 +11,11 @@ from openpasture.domain import (
     GeoPoint,
     GeoPolygon,
     Herd,
+    DecisionInputs,
+    DecisionWindow,
+    FarmerResponse,
+    GrazingDecision,
     LandUnit,
-    MovementDecision,
     Observation,
 )
 from openpasture.manifest import build_profile_manifest
@@ -71,27 +74,25 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
         metrics={"residual_inches": 3},
         tags=["field-note"],
     )
-    plan = MovementDecision(
-        id="plan_1",
+    window_start = datetime.now(timezone.utc).replace(hour=6, minute=0, second=0, microsecond=0)
+    plan = GrazingDecision(
+        decision_id="gd_1",
         farm_id=farm.id,
         herd_id=herd.id,
-        for_date=date.today(),
+        window=DecisionWindow(starts_at=window_start, ends_at=window_start + timedelta(days=1)),
         action="MOVE",
         reasoning=["Current paddock is short."],
         confidence="medium",
-        source_paddock_id=paddock.id,
-        target_paddock_id="paddock_2",
-        knowledge_entry_ids=["knowledge_1"],
-        status="pending",
-        farmer_feedback=None,
-        created_at=datetime.utcnow(),
+        from_land_unit_id=paddock.id,
+        to_land_unit_id="paddock_2",
+        inputs=DecisionInputs(knowledge_entry_ids=["knowledge_1"]),
     )
 
     assert store.create_farm(farm) == farm.id
     assert store.upsert_land_unit(paddock) == paddock.id
     assert store.create_herd(herd) == herd.id
     assert store.record_observation(observation) == observation.id
-    assert store.create_plan(plan) == plan.id
+    assert store.create_decision(plan) == plan.decision_id
 
     loaded_farm = store.get_farm(farm.id)
     assert loaded_farm is not None
@@ -103,18 +104,24 @@ def test_sqlite_store_round_trips_core_entities(tmp_path):
     assert store.get_herds(farm.id)[0].current_paddock_id == paddock.id
     assert store.get_recent_observations(farm.id, days=7)[0].id == observation.id
     assert store.get_paddock_observations(paddock.id, days=7)[0].id == observation.id
-    latest_plan = store.get_latest_plan(farm.id)
+    latest_plan = store.get_latest_decision(farm.id)
     assert latest_plan is not None
-    assert latest_plan.id == plan.id
+    assert latest_plan.decision_id == plan.decision_id
+    assert latest_plan.inputs.knowledge_entry_ids == ["knowledge_1"]
 
-    store.update_plan_status(plan.id, "approved", "Move them this afternoon.")
+    plan.status = "approved"
+    plan.farmer_response = FarmerResponse(
+        at=datetime.now(timezone.utc), response="approved", note="Move them this afternoon."
+    )
+    store.update_decision(plan, event="approved")
     store.update_herd_position(herd.id, "paddock_2")
 
-    updated_plan = store.get_plan(plan.id)
+    updated_plan = store.get_decision(plan.decision_id)
     updated_herd = store.get_herds(farm.id)[0]
     assert updated_plan is not None
     assert updated_plan.status == "approved"
-    assert updated_plan.farmer_feedback == "Move them this afternoon."
+    assert updated_plan.farmer_response is not None
+    assert updated_plan.farmer_response.note == "Move them this afternoon."
     assert updated_herd.current_paddock_id == "paddock_2"
 
 

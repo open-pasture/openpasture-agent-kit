@@ -1,6 +1,6 @@
 name: openpasture
 version: 0.1.0-alpha
-description: Hermes connector manifest for the openPasture agent kit.
+description: Hermes connector manifest for the Openpasture agent kit.
 provides_tools:
   - save_data_pipeline
   - run_data_pipeline
@@ -17,8 +17,19 @@ provides_tools:
   - set_herd_position
   - record_observation
   - get_paddock_state
-  - movement_decision
-  - approve_plan
+  - get_land_report
+  - record_collar_report
+  - get_herd_positions
+  - compute_grazing_signals
+  - assemble_decision_context
+  - submit_grazing_decision
+  - respond_to_decision
+  - get_decision
+  - list_decisions
+  - get_boundary_status
+  - set_autonomy
+  - evaluate_decision_outcome
+  - run_decision_cycle
   - store_lesson
   - update_lesson
   - find_similar_lessons

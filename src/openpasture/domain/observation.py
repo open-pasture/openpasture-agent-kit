@@ -25,6 +25,8 @@ _OBSERVATION_SOURCE_ALIASES = {
     "trailcam": "trailcam",
     "trail-cam": "trailcam",
     "weather": "weather",
+    "land-report": "land_report",
+    "alexandria": "land_report",
 }
 
 
@@ -65,3 +67,5 @@ class Observation:
     media_thumbnail_url: str | None = None
     media_metadata: dict[str, object] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
+    # Where an externally sourced value came from, e.g. a land report id and its sources.
+    provenance: dict[str, object] = field(default_factory=dict)

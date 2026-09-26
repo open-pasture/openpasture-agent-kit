@@ -65,7 +65,7 @@ SET_HERD_POSITION_SCHEMA = {
 
 GET_FARM_STATE_SCHEMA = {
     "type": "object",
-    "description": "Return the current farm snapshot including herds, paddocks, recent observations, and latest plan. farm_id is optional when exactly one farm is active.",
+    "description": "Return the current farm snapshot including herds, paddocks, recent observations, and the latest grazing decision. farm_id is optional when exactly one farm is active.",
     "properties": {
         "farm_id": {
             "type": "string",
@@ -236,7 +236,7 @@ def handle_get_farm_state(args: dict[str, object]) -> str:
     paddocks = [unit for unit in land_units if unit.unit_type in {"paddock", "section"}]
     herds = store.get_herds(farm_id)
     recent_observations = store.get_recent_observations(farm_id, days=7)
-    latest_plan = store.get_latest_plan(farm_id)
+    latest_decision = store.get_latest_decision(farm_id)
     set_active_farm_id(farm_id)
     return json_response(
         status="ok",
@@ -245,12 +245,16 @@ def handle_get_farm_state(args: dict[str, object]) -> str:
         paddocks=paddocks,
         herds=herds,
         recent_observations=recent_observations,
-        latest_plan=latest_plan,
+        latest_decision=latest_decision,
     )
 
 
 def handle_set_herd_position(args: dict[str, object]) -> str:
-    """Record which paddock a herd is currently occupying."""
+    """Record which paddock a herd is currently occupying.
+
+    When the herd wears collars, collar fixes are the primary source of its
+    location and the next decision cycle will follow them.
+    """
     store = get_store()
     herd_id = require_str(args, "herd_id")
     paddock_id = require_str(args, "paddock_id")

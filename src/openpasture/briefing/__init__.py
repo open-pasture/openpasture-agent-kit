@@ -1,1 +1,1 @@
-"""Morning brief orchestration package."""
+"""Decision engine, fallback advisor, morning brief, and scheduling."""

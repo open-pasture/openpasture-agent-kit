@@ -339,6 +339,6 @@ def handle_setup_initial_farm(args: dict[str, object]) -> str:
         herds=state["herds"],
         land_units=state["land_units"],
         paddocks=state["paddocks"],
-        latest_plan=state["latest_plan"],
+        latest_decision=state["latest_decision"],
         recent_observations=state["recent_observations"],
     )

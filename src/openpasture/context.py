@@ -1,8 +1,9 @@
-"""Runtime-agnostic openPasture agent kit context.
+"""Runtime-agnostic Openpasture agent kit context.
 
 The context is the reusable kernel that connectors, CLIs, tests, and hosted
-wrappers can share. It owns storage, knowledge retrieval, data directories, and
-optional scheduling without knowing which agent runtime is driving it.
+wrappers can share. It owns storage, knowledge retrieval, the land and collar
+connectors, the decision engine, data directories, and optional scheduling
+without knowing which agent runtime is driving it.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import os
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from datetime import timedelta
 from logging import getLogger
 from pathlib import Path
 from typing import Callable, Iterator, MutableMapping, TYPE_CHECKING
@@ -25,7 +27,10 @@ from openpasture.store.sqlite import SQLiteStore
 from openpasture.store.sqlite_knowledge import SQLiteKnowledgeStore
 
 if TYPE_CHECKING:
-    from openpasture.briefing.scheduler import MorningBriefScheduler
+    from openpasture.briefing.engine import DecisionEngine
+    from openpasture.briefing.scheduler import DecisionScheduler
+    from openpasture.collars import CollarGateway, CollarService
+    from openpasture.land import LandReportService, LandSource
 
 logger = getLogger(__name__)
 
@@ -53,6 +58,17 @@ class OpenPastureConfig:
     convex_url: str = field(default_factory=lambda: os.environ.get("OPENPASTURE_CONVEX_URL", ""))
     convex_key: str | None = field(default_factory=lambda: os.environ.get("OPENPASTURE_CONVEX_KEY"))
     load_seed_mode: str | None = field(default_factory=lambda: os.environ.get("OPENPASTURE_LOAD_SEED"))
+    land_source: str = field(default_factory=lambda: os.environ.get("OPENPASTURE_LAND_SOURCE", "auto"))
+    land_report_max_age_hours: float = field(
+        default_factory=lambda: float(os.environ.get("OPENPASTURE_LAND_REPORT_MAX_AGE_HOURS", "6"))
+    )
+    collar_gateway: str = field(default_factory=lambda: os.environ.get("OPENPASTURE_COLLAR_GATEWAY", "simulated"))
+    boundary_activation_threshold: float = field(
+        default_factory=lambda: float(os.environ.get("OPENPASTURE_BOUNDARY_ACTIVATION_THRESHOLD", "1.0"))
+    )
+    collar_fix_retention_days: int = field(
+        default_factory=lambda: int(os.environ.get("OPENPASTURE_COLLAR_FIX_RETENTION_DAYS", "30"))
+    )
 
     @classmethod
     def from_mapping(cls, config: MutableMapping[str, object] | None = None) -> "OpenPastureConfig":
@@ -77,6 +93,12 @@ class OpenPastureConfig:
             base.convex_key = str(config["convex_key"])
         if isinstance(config.get("load_seed_mode"), str):
             base.load_seed_mode = str(config["load_seed_mode"])
+        if isinstance(config.get("land_source"), str):
+            base.land_source = str(config["land_source"])
+        if isinstance(config.get("collar_gateway"), str):
+            base.collar_gateway = str(config["collar_gateway"])
+        if isinstance(config.get("boundary_activation_threshold"), (int, float)):
+            base.boundary_activation_threshold = float(config["boundary_activation_threshold"])
         return base
 
 
@@ -88,14 +110,20 @@ class OpenPastureContext:
         config: OpenPastureConfig | MutableMapping[str, object] | None = None,
         *,
         delivery_handler: Callable[[str], bool] | None = None,
+        land_source: LandSource | None = None,
+        collar_gateway: CollarGateway | None = None,
     ) -> None:
         self.config = config if isinstance(config, OpenPastureConfig) else OpenPastureConfig.from_mapping(config)
         self.delivery_handler = delivery_handler
+        self._land_source = land_source
+        self._collar_gateway = collar_gateway
+        self._land_service: LandReportService | None = None
+        self._collar_service: CollarService | None = None
         self._store: FarmStore | None = None
         self._knowledge_store: KnowledgeStore | None = None
         self._embedder: KnowledgeEmbedder | None = None
         self._retriever: KnowledgeRetriever | None = None
-        self._brief_scheduler: MorningBriefScheduler | None = None
+        self._brief_scheduler: DecisionScheduler | None = None
         self._seed_loaded = False
         self.active_farm_id: str | None = None
         self.runtime_notices: list[str] = []
@@ -201,13 +229,81 @@ class OpenPastureContext:
             raise RuntimeError("Knowledge embedder is not initialized.")
         return self._embedder
 
-    def get_brief_scheduler(self) -> MorningBriefScheduler:
-        from openpasture.briefing.scheduler import MorningBriefScheduler, parse_brief_time
+    def get_land_source(self) -> LandSource:
+        if self._land_source is None:
+            from openpasture.land import land_source_from_env
+
+            self._land_source = land_source_from_env(self.config.land_source)
+        return self._land_source
+
+    def set_land_source(self, source: LandSource) -> None:
+        self._land_source = source
+        self._land_service = None
+
+    def get_land_service(self) -> LandReportService:
+        if self._land_service is None:
+            from openpasture.land import LandReportService
+
+            self._land_service = LandReportService(
+                self.get_store(),
+                self.get_land_source(),
+                max_age=timedelta(hours=self.config.land_report_max_age_hours),
+            )
+        return self._land_service
+
+    def get_collar_gateway(self) -> CollarGateway:
+        if self._collar_gateway is None:
+            from openpasture.collars import collar_gateway_from_env
+
+            self._collar_gateway = collar_gateway_from_env(self.config.collar_gateway)
+        return self._collar_gateway
+
+    def set_collar_gateway(self, gateway: CollarGateway) -> None:
+        self._collar_gateway = gateway
+        self._collar_service = None
+
+    def get_collar_service(self) -> CollarService:
+        if self._collar_service is None:
+            from openpasture.collars import CollarService
+
+            self._collar_service = CollarService(
+                self.get_store(),
+                self.get_collar_gateway(),
+                activation_threshold=self.config.boundary_activation_threshold,
+                retention_days=self.config.collar_fix_retention_days,
+            )
+        return self._collar_service
+
+    def get_decision_engine(self) -> DecisionEngine:
+        """A decision engine bound to this context's store and connectors."""
+
+        from openpasture.briefing.engine import DecisionEngine
+
+        try:
+            retriever = self.get_knowledge()
+        except Exception:
+            logger.warning("Knowledge retrieval is unavailable; deciding without it.", exc_info=True)
+            retriever = None
+        return DecisionEngine(
+            self.get_store(),
+            land=self.get_land_service(),
+            collars=self.get_collar_service(),
+            retriever=retriever,
+            default_window_start_time=self.config.brief_time or "06:00",
+            default_activation_threshold=self.config.boundary_activation_threshold,
+        )
+
+    def get_decision_scheduler(self) -> DecisionScheduler:
+        return self.get_brief_scheduler()
+
+    def get_brief_scheduler(self) -> DecisionScheduler:
+        from openpasture.briefing.scheduler import DecisionScheduler, parse_brief_time
 
         hour, minute = parse_brief_time(self.config.brief_time)
         if self._brief_scheduler is None:
-            self._brief_scheduler = MorningBriefScheduler(
+            self._brief_scheduler = DecisionScheduler(
                 store=self.get_store(),
+                engine_factory=self.get_decision_engine,
                 deliver_fn=self.delivery_handler,
                 default_hour=hour,
                 default_minute=minute,
@@ -229,6 +325,13 @@ class OpenPastureContext:
         notices: list[str] = []
         if not os.environ.get("FIRECRAWL_API_KEY", "").strip():
             notices.append("Knowledge ingestion from web sources is unavailable until FIRECRAWL_API_KEY is set.")
+            if self.config.land_source.strip().lower() == "auto":
+                notices.append(
+                    "Alexandria land reports are unavailable until FIRECRAWL_API_KEY is set; "
+                    "weather comes from Open-Meteo and imagery is unavailable."
+                )
+        if self.config.collar_gateway.strip().lower() == "simulated":
+            notices.append("Collars are simulated (OPENPASTURE_COLLAR_GATEWAY=simulated); boundaries do not reach real collars.")
         self.runtime_notices = notices
         return list(notices)
 
@@ -370,8 +473,24 @@ def get_embedder() -> KnowledgeEmbedder:
     return get_default_context().get_embedder()
 
 
-def get_brief_scheduler() -> MorningBriefScheduler:
+def get_brief_scheduler() -> DecisionScheduler:
     return get_default_context().get_brief_scheduler()
+
+
+def get_decision_scheduler() -> DecisionScheduler:
+    return get_default_context().get_decision_scheduler()
+
+
+def get_land_service() -> LandReportService:
+    return get_default_context().get_land_service()
+
+
+def get_collar_service() -> CollarService:
+    return get_default_context().get_collar_service()
+
+
+def get_decision_engine() -> DecisionEngine:
+    return get_default_context().get_decision_engine()
 
 
 def get_runtime_notices() -> list[str]:

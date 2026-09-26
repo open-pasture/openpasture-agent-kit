@@ -35,7 +35,7 @@ def test_chatgpt_app_registers_onboarding_widget_resource():
     assert 'method: "ui/message"' in resource["text"]
     assert "ui/notifications/tool-result" in resource["text"]
     assert "ui/notifications/tool-input" in resource["text"]
-    assert "OpenPasture farm onboarding" in resource["text"]
+    assert "Openpasture farm onboarding" in resource["text"]
 
 
 def test_onboarding_status_before_setup_prompts_for_minimum_details():
