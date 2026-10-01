@@ -1,3 +1,5 @@
+> **Archived.** This is an early version of openpasture and is no longer developed. The current software is [open-pasture/openpasture](https://github.com/open-pasture/openpasture) (Rust, AGPL-3.0) and the collar is [open-pasture/opencollar](https://github.com/open-pasture/opencollar). More at [openpasture.dev](https://openpasture.dev).
+
 # openPasture Agent Kit
 
 This repository contains the agent kit for `openPasture`, the agent-native farm operating toolkit for pasture-based livestock management.
